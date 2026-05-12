@@ -1,9 +1,6 @@
 local config = require("fzf.config")
 local M = {}
 
-
-
-
 function M.get_fzf_base()
   return "fzf " ..
       table.concat(
