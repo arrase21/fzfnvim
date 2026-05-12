@@ -29,6 +29,10 @@ vim.api.nvim_create_user_command("FzfBuffers", function()
   fzf.buffers()
 end, {})
 
+vim.api.nvim_create_user_command("FzfOldFiles", function()
+  fzf.oldfiles()
+end, {})
+
 -- git
 vim.api.nvim_create_user_command("FzfGitCommits", function()
   fzf.git_commits()

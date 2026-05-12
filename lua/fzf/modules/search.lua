@@ -203,4 +203,38 @@ S.todos = function()
   ui.fzf_ui(cmd, open_rg_selection)
 end
 
+S.oldfiles = function()
+  local files = vim.v.oldfiles
+
+  if not files or #files == 0 then
+    return helpers.notify("No old files")
+  end
+
+  local lines = {}
+
+  for _, file in ipairs(files) do
+    if vim.fn.filereadable(file) == 1 then
+      table.insert(lines, file)
+    end
+  end
+
+  local preview = string.format(
+    "--preview '%s --line-range :500 {}' --preview-window=right:60%%",
+    ui.get_preview_cmd()
+  )
+
+  local cmd = string.format(
+    "echo %s | %s %s",
+    vim.fn.shellescape(table.concat(lines, "\n")),
+    ui.get_fzf_base(),
+    preview
+  )
+
+  ui.fzf_ui(cmd, function(selection)
+    if selection and selection ~= "" then
+      vim.cmd("edit " .. vim.fn.fnameescape(selection))
+    end
+  end)
+end
+
 return S

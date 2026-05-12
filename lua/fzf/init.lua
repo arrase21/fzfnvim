@@ -14,6 +14,7 @@ M.grep = M.search.grep
 M.grep_word = M.search.grep_word
 M.buffers = M.search.buffers
 M.todos = M.search.todos
+M.oldfiles = M.search.oldfiles
 
 -- git
 M.git_files = M.git.files
