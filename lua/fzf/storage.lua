@@ -34,4 +34,34 @@ function M.harpoon_save(data)
   end
 end
 
+local git_root_cache = {}
+
+function M.get_git_root()
+  local cwd = vim.fn.getcwd()
+
+  if git_root_cache[cwd] then
+    return git_root_cache[cwd]
+  end
+
+  local root_result =
+      vim.fn.systemlist(
+        "git rev-parse --show-toplevel 2>/dev/null"
+      )
+
+  local root
+
+  if vim.v.shell_error == 0
+      and root_result[1]
+      and not root_result[1]:match("^fatal")
+  then
+    root = root_result[1]
+  else
+    root = cwd
+  end
+
+  git_root_cache[cwd] = root
+
+  return root
+end
+
 return M

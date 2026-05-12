@@ -1,54 +1,129 @@
-local core = require("fzf.core")
+local ui = require("fzf.ui")
+local helpers = require("fzf.helpers")
+local storage = require("fzf.storage")
 
 local H = {}
 
-H.harpoon_jump = function(index)
-  local files = (harpoon_load())[get_git_root()]
-  if files and files[index] then vim.cmd("edit " .. vim.fn.fnameescape(files[index])) end
-end
-
 H.add = function()
-  local key, file = core.get_git_root(), vim.fn.expand("%:p")
-  if file == "" then return core.notify("No hay archivo abierto", vim.log.levels.WARN) end
-  local data = core.harpoon_load()
-  data[key] = data[key] or {}
-  for _, f in ipairs(data[key]) do
-    if f == file then return notify("Ya está en Harpoon", vim.log.levels.WARN) end
+  local key = storage.get_git_root()
+
+  local file = vim.fn.expand("%:p")
+
+  if file == "" then
+    return helpers.notify(
+      "not opened file",
+      vim.log.levels.WARN
+    )
   end
+
+  local data = storage.harpoon_load()
+
+  data[key] = data[key] or {}
+
+  for _, f in ipairs(data[key]) do
+    if f == file then
+      return helpers.notify(
+        "You are in Harpoon",
+        vim.log.levels.WARN
+      )
+    end
+  end
+
   table.insert(data[key], file)
-  core.harpoon_save(data)
-  core.notify("🪝 Harpoon: " .. vim.fn.fnamemodify(file, ":~:."))
+
+  storage.harpoon_save(data)
+
+  helpers.notify(
+    "🪝 Harpoon: " ..
+    vim.fn.fnamemodify(file, ":~:.")
+  )
 end
 
 H.open = function()
-  local key = core.get_git_root()
-  local files = (core.harpoon_load())[key] or {}
-  if #files == 0 then return core.notify("Harpoon vacío", vim.log.levels.WARN) end
-  local list = table.concat(files, "\n")
-  local preview = string.format("--preview '%s --line-range :500 {}' --preview-window=right:60%%", core.bat_preview)
-  local cmd = string.format("echo %s | %s", vim.fn.shellescape(list), core.fzf_base .. preview)
-  core.fzf_ui(cmd, function(selection) vim.cmd("edit " .. vim.fn.fnameescape(selection)) end)
+  local key = storage.get_git_root()
+
+  local files =
+      (storage.harpoon_load())[key] or {}
+
+  if #files == 0 then
+    return helpers.notify(
+      "Harpoon vacío",
+      vim.log.levels.WARN
+    )
+  end
+
+  local list =
+      table.concat(files, "\n")
+
+  local cmd = string.format(
+    "echo %s | %s " ..
+    "--preview '%s --line-range :500 {}' " ..
+    "--preview-window=right:60%%",
+    vim.fn.shellescape(list),
+    ui.get_fzf_base(),
+    ui.get_preview_cmd()
+  )
+
+  ui.fzf_ui(cmd, function(selection)
+    vim.cmd(
+      "edit " ..
+      vim.fn.fnameescape(selection)
+    )
+  end)
 end
 
 H.remove = function()
-  local key = core.get_git_root()
-  local data = core.harpoon_load()
-  local files = data[key] or {}
-  if #files == 0 then return end
-  local list = table.concat(files, "\n")
-  local cmd = string.format("echo %s | %s --header 'Enter para eliminar'", vim.fn.shellescape(list), fzf_base)
-  core.fzf_ui(cmd, function(selection)
+  local key =
+      storage.get_git_root()
+
+  local data =
+      storage.harpoon_load()
+
+  local files =
+      data[key] or {}
+
+  if #files == 0 then
+    return
+  end
+
+  local list =
+      table.concat(files, "\n")
+
+  local cmd = string.format(
+    "echo %s | %s --header 'Delete file'",
+    vim.fn.shellescape(list),
+    ui.get_fzf_base()
+  )
+
+  ui.fzf_ui(cmd, function(selection)
     local new_files = {}
-    for _, f in ipairs(files) do if f ~= selection then table.insert(new_files, f) end end
+
+    for _, f in ipairs(files) do
+      if f ~= selection then
+        table.insert(new_files, f)
+      end
+    end
+
     data[key] = new_files
-    core.harpoon_save(data)
-    core.notify("🗑️ Eliminado de Harpoon")
+
+    storage.harpoon_save(data)
+
+    helpers.notify(
+      "🗑️ Removed from Harpoon"
+    )
   end)
 end
 
 H.jump = function(index)
-  local files = (core.harpoon_load())[core.get_git_root()]
-  if files and files[index] then vim.cmd("edit " .. vim.fn.fnameescape(files[index])) end
+  local files =
+      (storage.harpoon_load())[storage.get_git_root()]
+
+  if files and files[index] then
+    vim.cmd(
+      "edit " ..
+      vim.fn.fnameescape(files[index])
+    )
+  end
 end
 
 return H
