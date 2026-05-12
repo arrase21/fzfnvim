@@ -1,133 +1,63 @@
+local picker = require("fzf.picker")
 local config = require("fzf.config").options
-local ui = require("fzf.ui")
 local helpers = require("fzf.helpers")
 
 local S = {}
 
-local Preview = function()
-  return string.format(
-    "--preview '%s --line-range :500 {}' " ..
-    "--preview-window=right:60%%",
-    ui.get_preview_cmd()
-  )
+local function preview()
+  return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}"
 end
 
-local Join_path = function(root, file)
-  root = root:gsub("/$", "")
-  file = file:gsub("^/", "")
-
-  return root .. "/" .. file
+local function rg_preview()
+  return require("fzf.ui").get_preview_cmd() .. " --highlight-line {2} {1}"
 end
 
-local function open_rg_selection(selection, root)
-  local file, line, col =
-      selection:match(
-        "^([^:]+):(%d+):(%d+):"
-      )
+local function open_rg_selection(selection, ctx)
+  local file, line, col = selection:match("^([^:]+):(%d+):(%d+):")
 
   if file then
-    helpers.jump(
-      Join_path(root, file),
-      line,
-      col
-    )
+    helpers.jump(helpers.join_path(ctx.root, file), line, col)
   end
 end
 
--- files
 S.files = function()
-  local fzf_opts =
-      helpers.build_fzf_opts(
-        config.files.fzf_opts
-      )
-
-  local cmd =
-      "rg --files --hidden -g '!.git' | " ..
-      ui.get_fzf_base() ..
-      " " ..
-      fzf_opts ..
-      " " ..
-      Preview()
-
-  ui.fzf_ui(cmd, function(selection, root)
-    vim.cmd(
-      "edit " ..
-      vim.fn.fnameescape(
-        Join_path(root, selection)
-      )
-    )
-  end)
+  picker.pick({
+    source = "rg --files --hidden -g '!.git'",
+    preview = preview(),
+    fzf_opts = helpers.build_fzf_opts(config.files.fzf_opts),
+    on_select = function(selection, ctx)
+      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, selection)))
+    end,
+  })
 end
 
--- grep
 S.grep = function()
-  local preview = string.format(
-    "--preview '%s --highlight-line {2} {1}' " ..
-    "--preview-window=right:60%%",
-    ui.get_preview_cmd()
-  )
-
-  local fzf_opts =
-      helpers.build_fzf_opts(
-        config.grep.fzf_opts
-      )
-
-  local cmd =
-      "rg " ..
-      "--column " ..
-      "--line-number " ..
-      "--no-heading " ..
-      "--color=always " ..
-      "--smart-case '' | " ..
-      ui.get_fzf_base() ..
-      " " ..
-      fzf_opts ..
-      " --delimiter ':' " ..
-      preview
-
-  ui.fzf_ui(cmd, open_rg_selection)
+  picker.pick({
+    source = "rg --column --line-number " .. "--no-heading --color=always --smart-case ''",
+    preview = rg_preview(),
+    delimiter = ":",
+    fzf_opts = helpers.build_fzf_opts(config.grep.fzf_opts),
+    on_select = open_rg_selection,
+  })
 end
 
--- grep current word
 S.grep_word = function()
-  local word =
-      vim.fn.expand("<cword>")
+  local word = vim.fn.expand("<cword>")
 
-  local preview = string.format(
-    "--preview '%s --highlight-line {2} {1}' " ..
-    "--preview-window=right:60%%",
-    ui.get_preview_cmd()
-  )
-
-  local fzf_opts =
-      helpers.build_fzf_opts(
-        config.grep.fzf_opts
-      )
-
-  local cmd = string.format(
-        "rg " ..
-        "--column " ..
-        "--line-number " ..
-        "--no-heading " ..
-        "--color=always " ..
-        "--smart-case %s | ",
-        vim.fn.shellescape(word)
-      ) ..
-      ui.get_fzf_base() ..
-      " " ..
-      fzf_opts ..
-      " --delimiter ':' " ..
-      preview
-
-  ui.fzf_ui(cmd, open_rg_selection)
+  picker.pick({
+    source = string.format(
+      "rg --column --line-number " .. "--no-heading --color=always --smart-case %s",
+      vim.fn.shellescape(word)
+    ),
+    preview = rg_preview(),
+    delimiter = ":",
+    fzf_opts = helpers.build_fzf_opts(config.grep.fzf_opts),
+    on_select = open_rg_selection,
+  })
 end
 
--- buffers
 S.buffers = function()
-  local buffers =
-      vim.fn.getbufinfo({
-        buflisted = 1
-      })
+  local buffers = vim.fn.getbufinfo({ buflisted = 1 })
 
   table.sort(buffers, function(a, b)
     return a.lastused > b.lastused
@@ -145,62 +75,28 @@ S.buffers = function()
     return helpers.notify("No buffers")
   end
 
-  local fzf_opts =
-      helpers.build_fzf_opts(
-        config.buffers.fzf_opts
-      )
-
-  local cmd = string.format(
-    "echo %s | %s %s %s",
-    vim.fn.shellescape(
-      table.concat(lines, "\n")
-    ),
-    ui.get_fzf_base(),
-    fzf_opts,
-    Preview()
-  )
-
-  ui.fzf_ui(cmd, function(selection)
-    vim.cmd(
-      "edit " ..
-      vim.fn.fnameescape(selection)
-    )
-  end)
+  picker.pick({
+    source = lines,
+    preview = preview(),
+    on_select = function(selection)
+      vim.cmd("edit " .. vim.fn.fnameescape(selection))
+    end,
+  })
 end
 
--- todos
 S.todos = function()
-  local patterns =
-  "TODO|FIXME|HACK|NOTE|BUG|WARN"
+  local patterns = "TODO|FIXME|HACK|NOTE|BUG|WARN"
 
-  local preview = string.format(
-    "--preview '%s --highlight-line {2} {1}' " ..
-    "--preview-window=right:60%%",
-    ui.get_preview_cmd()
-  )
-
-  local fzf_opts =
-      helpers.build_fzf_opts(
-        config.todos.fzf_opts
-      )
-
-  local cmd = string.format(
-        "rg " ..
-        "--column " ..
-        "--line-number " ..
-        "--no-heading " ..
-        "--color=always " ..
-        "--smart-case " ..
-        "-e '%s' | ",
-        patterns
-      ) ..
-      ui.get_fzf_base() ..
-      " " ..
-      fzf_opts ..
-      " --delimiter ':' " ..
-      preview
-
-  ui.fzf_ui(cmd, open_rg_selection)
+  picker.pick({
+    source = string.format(
+      "rg --column --line-number " .. "--no-heading --color=always --smart-case -e '%s'",
+      patterns
+    ),
+    preview = rg_preview(),
+    delimiter = ":",
+    fzf_opts = helpers.build_fzf_opts(config.todos.fzf_opts),
+    on_select = open_rg_selection,
+  })
 end
 
 S.oldfiles = function()
@@ -218,23 +114,15 @@ S.oldfiles = function()
     end
   end
 
-  local preview = string.format(
-    "--preview '%s --line-range :500 {}' --preview-window=right:60%%",
-    ui.get_preview_cmd()
-  )
-
-  local cmd = string.format(
-    "echo %s | %s %s",
-    vim.fn.shellescape(table.concat(lines, "\n")),
-    ui.get_fzf_base(),
-    preview
-  )
-
-  ui.fzf_ui(cmd, function(selection)
-    if selection and selection ~= "" then
-      vim.cmd("edit " .. vim.fn.fnameescape(selection))
-    end
-  end)
+  picker.pick({
+    source = lines,
+    preview = preview(),
+    on_select = function(selection)
+      if selection and selection ~= "" then
+        vim.cmd("edit " .. vim.fn.fnameescape(selection))
+      end
+    end,
+  })
 end
 
 return S

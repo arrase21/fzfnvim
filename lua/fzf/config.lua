@@ -23,9 +23,16 @@ M.options = {
   },
 
   ui = {
+    layout = "center",
     width = 0.90,
     height = 0.65,
     backdrop = true,
+    backdrop_bg = "#000000",
+    dropdown = {
+      width = 1.0,
+      height = 0.40,
+      border = "none",
+    },
   },
 
   preview = {
@@ -54,11 +61,7 @@ M.options = {
 }
 
 function M.setup(opts)
-  M.options = vim.tbl_deep_extend(
-    "force",
-    M.options,
-    opts or {}
-  )
+  M.options = vim.tbl_deep_extend("force", M.options, opts or {})
 end
 
 return M

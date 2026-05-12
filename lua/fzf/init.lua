@@ -1,6 +1,9 @@
 local M = {}
 
 local core = require("fzf.core")
+local picker = require("fzf.picker")
+
+M.pick = picker.pick
 
 M.search = require("fzf.modules.search")
 M.git = require("fzf.modules.git")

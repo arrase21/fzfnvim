@@ -1,12 +1,10 @@
 local M = {}
 
-M.sessions_dir =
-    vim.fn.expand("~/.local/share/nvim/sessions")
+M.sessions_dir = vim.fn.stdpath("data") .. "/sessions"
 
 vim.fn.mkdir(M.sessions_dir, "p")
 
-local harpoon_file =
-    vim.fn.stdpath("data") .. "/harpoon.json"
+local harpoon_file = vim.fn.stdpath("data") .. "/harpoon.json"
 
 function M.harpoon_load()
   local f = io.open(harpoon_file, "r")
@@ -19,8 +17,7 @@ function M.harpoon_load()
 
   f:close()
 
-  local ok, data =
-      pcall(vim.fn.json_decode, content)
+  local ok, data = pcall(vim.fn.json_decode, content)
 
   return (ok and data) or {}
 end
@@ -43,17 +40,11 @@ function M.get_git_root()
     return git_root_cache[cwd]
   end
 
-  local root_result =
-      vim.fn.systemlist(
-        "git rev-parse --show-toplevel 2>/dev/null"
-      )
+  local root_result = vim.fn.systemlist("git rev-parse --show-toplevel 2>/dev/null")
 
   local root
 
-  if vim.v.shell_error == 0
-      and root_result[1]
-      and not root_result[1]:match("^fatal")
-  then
+  if vim.v.shell_error == 0 and root_result[1] and not root_result[1]:match("^fatal") then
     root = root_result[1]
   else
     root = cwd

@@ -1,5 +1,4 @@
-local ui =
-    require("fzf.ui")
+local ui = require("fzf.ui")
 
 local M = {}
 
@@ -9,21 +8,15 @@ function M.setup()
 
     local lines = {}
 
-    local format_item =
-        opts.format_item or tostring
+    local format_item = opts.format_item or tostring
 
     for _, item in ipairs(items) do
-      table.insert(
-        lines,
-        format_item(item)
-      )
+      table.insert(lines, format_item(item))
     end
 
     local cmd = string.format(
       "echo %s | %s --prompt '%s> '",
-      vim.fn.shellescape(
-        table.concat(lines, "\n")
-      ),
+      vim.fn.shellescape(table.concat(lines, "\n")),
       ui.get_fzf_base(),
       opts.prompt or "Select"
     )

@@ -34,6 +34,10 @@ vim.api.nvim_create_user_command("FzfOldFiles", function()
 end, {})
 
 -- git
+vim.api.nvim_create_user_command("FzfGitFiles", function()
+  fzf.git_files()
+end, {})
+
 vim.api.nvim_create_user_command("FzfGitCommits", function()
   fzf.git_commits()
 end, {})
@@ -46,8 +50,12 @@ vim.api.nvim_create_user_command("FzfGitStatus", function()
   fzf.git_status()
 end, {})
 
-vim.api.nvim_create_user_command("FzfGitCommits", function()
-  fzf.git_commits()
+vim.api.nvim_create_user_command("FzfGitDiff", function()
+  fzf.git_diff()
+end, {})
+
+vim.api.nvim_create_user_command("FzfGitStash", function()
+  fzf.git_stash()
 end, {})
 
 -- harpoon
@@ -98,9 +106,5 @@ vim.api.nvim_create_user_command("FzfLspImplementations", function()
 end, {})
 
 vim.api.nvim_create_user_command("FzfLspType", function()
-  fzf.lsp_implementations()
+  fzf.lsp_type_definitions()
 end, {})
-
--- vim.api.nvim_create_user_command("FzfLspType", function()
---   fzf.lsp_implementations()
--- end, {})
