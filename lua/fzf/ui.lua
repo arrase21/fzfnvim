@@ -2,7 +2,13 @@ local config = require("fzf.config")
 local M = {}
 
 function M.get_fzf_base()
-  return "fzf " .. table.concat(config.options.fzf.base, " ")
+  local parts = {}
+  for _, opt in ipairs(config.options.fzf.base) do
+    parts[#parts + 1] = opt
+  end
+  local cwd = vim.fn.fnamemodify(vim.fn.getcwd(), ":~")
+  parts[#parts + 1] = string.format("--prompt=' %s 󰍉  '", cwd)
+  return "fzf " .. table.concat(parts, " ")
 end
 
 function M.get_preview_cmd()
@@ -69,6 +75,7 @@ function M.fzf_ui(cmd, on_select, win_opts)
   local border = (win_opts and win_opts.border) or config.options.ui.border or "rounded"
   local title = (win_opts and win_opts.title) or config.options.ui.title or " FZF "
   local title_pos = (win_opts and win_opts.title_pos) or config.options.ui.title_pos or "center"
+  local root = vim.fn.getcwd()
 
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
@@ -82,8 +89,6 @@ function M.fzf_ui(cmd, on_select, win_opts)
     title = title,
     title_pos = title_pos,
   })
-
-  local root = vim.fn.getcwd()
 
   local temp = vim.fn.tempname()
 

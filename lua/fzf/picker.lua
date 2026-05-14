@@ -23,11 +23,24 @@ function M.pick(opts)
     error("picker: source must be a string or table")
   end
 
+  local win_opts = opts.win_opts
+
+  if not win_opts then
+    local layout = opts.layout or config.options.ui.layout
+    local resolver = config.layout_presets[layout]
+
+    if resolver then
+      win_opts = resolver(config.options.ui)
+    else
+      win_opts = config.layout_presets.center(config.options.ui)
+    end
+  end
+
   local flags = {}
 
   if opts.preview then
     table.insert(flags, string.format("--preview '%s'", opts.preview))
-    table.insert(flags, string.format("--preview-window=%s", opts.preview_window or "right:60%"))
+    table.insert(flags, string.format("--preview-window=%s", opts.preview_window or win_opts.preview_window or "right:60%"))
   end
 
   if opts.delimiter then
@@ -61,6 +74,12 @@ function M.pick(opts)
     end
   end
 
+  if win_opts.fzf_opts then
+    for _, opt in ipairs(win_opts.fzf_opts) do
+      table.insert(flags, opt)
+    end
+  end
+
   local flag_str = ""
   if #flags > 0 then
     flag_str = " " .. table.concat(flags, " ")
@@ -74,19 +93,6 @@ function M.pick(opts)
     full_cmd = "{ " .. pipeline .. "; rm -f " .. vim.fn.shellescape(tmpfile) .. "; }"
   else
     full_cmd = pipeline
-  end
-
-  local win_opts = opts.win_opts
-
-  if not win_opts then
-    local layout = opts.layout or config.options.ui.layout
-    local resolver = config.layout_presets[layout]
-
-    if resolver then
-      win_opts = resolver(config.options.ui)
-    else
-      win_opts = config.layout_presets.center(config.options.ui)
-    end
   end
 
   ui.fzf_ui(full_cmd, function(selection, root)

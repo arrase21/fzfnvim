@@ -9,6 +9,7 @@ M.layout_presets = {
       height = h,
       row = math.floor((vim.o.lines - h) / 2),
       col = math.floor((vim.o.columns - w) / 2),
+      preview_window = "right:60%",
     }
   end,
   fullscreen = function(opts)
@@ -20,6 +21,7 @@ M.layout_presets = {
       height = h,
       row = 0,
       col = 0,
+      preview_window = "right:50%",
     })
   end,
   horizontal = function(opts)
@@ -32,6 +34,24 @@ M.layout_presets = {
       row = vim.o.lines - hi,
       col = 0,
     })
+  end,
+  vertical = function(opts)
+    local v = opts.vertical or {}
+    local w = math.floor(vim.o.columns * (v.width or 0.90))
+    local h = math.floor(vim.o.lines * (v.height or 0.80))
+    return {
+      width = w,
+      height = h,
+      row = math.floor((vim.o.lines - h) / 2),
+      col = math.floor((vim.o.columns - w) / 2),
+      border = v.border or "none",
+      preview_window = v.preview_window or "bottom:50%:border-top",
+      fzf_opts = v.fzf_opts or {
+        "--border=rounded",
+        "--border-label=' Files '",
+        "--preview-label=' Preview '",
+      },
+    }
   end,
 }
 
@@ -76,6 +96,17 @@ M.options = {
       height = 0.35,
       border = "rounded",
     },
+    vertical = {
+      width = 0.90,
+      height = 0.80,
+      border = "none",
+      preview_window = "bottom:50%:border-top",
+      fzf_opts = {
+        "--border=rounded",
+        "--border-label=' Files '",
+        "--preview-label=' Preview '",
+      },
+    },
   },
 
   preview = {
@@ -95,7 +126,6 @@ M.options = {
       "--marker='✓'",
       "--separator='─'",
       "--scrollbar='│'",
-      "--preview-window='right:60%:border-left'",
     },
   },
 
