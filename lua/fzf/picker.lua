@@ -36,6 +36,10 @@ function M.pick(opts)
     end
   end
 
+  if opts.title then
+    win_opts.title = opts.title
+  end
+
   local flags = {}
 
   if opts.preview then

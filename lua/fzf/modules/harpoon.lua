@@ -42,6 +42,7 @@ H.open = function()
   picker.pick({
     source = files,
     preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
+    title = " Harpoon ",
     on_select = function(selection)
       vim.cmd("edit " .. vim.fn.fnameescape(selection))
     end,
@@ -62,6 +63,7 @@ H.remove = function()
   picker.pick({
     source = files,
     header = "Delete file",
+    title = " Harpoon Remove ",
     on_select = function(selection)
       local new_files = {}
 

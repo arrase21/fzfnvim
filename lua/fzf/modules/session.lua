@@ -37,6 +37,7 @@ S.session_load = function()
 
   picker.pick({
     source = sessions,
+    title = " Sessions ",
     on_select = function(selection)
       vim.cmd("source " .. vim.fn.fnameescape(storage.sessions_dir .. "/" .. selection))
 
@@ -55,6 +56,7 @@ S.session_delete = function()
   picker.pick({
     source = sessions,
     header = "Delete session",
+    title = " Delete Session ",
     on_select = function(selection)
       os.remove(storage.sessions_dir .. "/" .. selection)
 

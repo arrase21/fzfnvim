@@ -112,6 +112,7 @@ L.diagnostics = function()
   picker.pick({
     source = lines,
     preview = preview_cmd() .. " --line-range {4}: --highlight-line {4} {6}",
+    title = " Diagnostics ",
     delimiter = "\t",
     with_nth = "1,2,3",
     on_select = function(selection)
@@ -130,7 +131,7 @@ L.diagnostics = function()
   })
 end
 
-local function location_picker(method)
+local function location_picker(method, title)
   local params = vim.lsp.util.make_position_params(0, "utf-8")
 
   if method:match("references") then
@@ -181,6 +182,7 @@ local function location_picker(method)
     picker.pick({
       source = lines,
       preview = preview_cmd() .. " --highlight-line {2} {1}",
+      title = title or " Locations ",
       delimiter = ":",
       on_select = function(selection)
         local file, lnum, col = selection:match("^(.-):(%d+):(%d+)")
@@ -194,19 +196,19 @@ local function location_picker(method)
 end
 
 L.references = function()
-  location_picker("textDocument/references")
+  location_picker("textDocument/references", " References ")
 end
 
 L.definitions = function()
-  location_picker("textDocument/definition")
+  location_picker("textDocument/definition", " Definitions ")
 end
 
 L.implementations = function()
-  location_picker("textDocument/implementation")
+  location_picker("textDocument/implementation", " Implementations ")
 end
 
 L.type_definition = function()
-  location_picker("textDocument/typeDefinition")
+  location_picker("textDocument/typeDefinition", " Type Definition ")
 end
 
 L.symbols = function()
@@ -250,6 +252,7 @@ L.symbols = function()
     picker.pick({
       source = lines,
       preview = preview_cmd() .. " --highlight-line {3} " .. current_file,
+      title = " Symbols ",
       delimiter = "\t",
       with_nth = "1,2",
       on_select = function(selection)

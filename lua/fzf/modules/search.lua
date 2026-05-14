@@ -21,12 +21,17 @@ local function open_rg_selection(selection, ctx)
 end
 
 S.files = function()
+  local files = vim.fn.systemlist("rg --files --hidden -g '!.git'")
+  if #files == 0 then return end
   picker.pick({
-    source = "rg --files --hidden -g '!.git'",
-    preview = preview(),
+    source = helpers.add_file_icons(files),
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {2}",
+    title = " Files ",
+    delimiter = "\t",
     fzf_opts = helpers.build_fzf_opts(config.files.fzf_opts),
     on_select = function(selection, ctx)
-      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, selection)))
+      local file = helpers.strip_icon(selection)
+      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, file)))
     end,
   })
 end
@@ -35,6 +40,7 @@ S.grep = function()
   picker.pick({
     source = "rg --column --line-number " .. "--no-heading --color=always --smart-case ''",
     preview = rg_preview(),
+    title = " Grep ",
     delimiter = ":",
     fzf_opts = helpers.build_fzf_opts(config.grep.fzf_opts),
     on_select = open_rg_selection,
@@ -50,6 +56,7 @@ S.grep_word = function()
       vim.fn.shellescape(word)
     ),
     preview = rg_preview(),
+    title = " Grep Word ",
     delimiter = ":",
     fzf_opts = helpers.build_fzf_opts(config.grep.fzf_opts),
     on_select = open_rg_selection,
@@ -78,6 +85,7 @@ S.buffers = function()
   picker.pick({
     source = lines,
     preview = preview(),
+    title = " Buffers ",
     on_select = function(selection)
       vim.cmd("edit " .. vim.fn.fnameescape(selection))
     end,
@@ -93,6 +101,7 @@ S.todos = function()
       patterns
     ),
     preview = rg_preview(),
+    title = " TODOs ",
     delimiter = ":",
     fzf_opts = helpers.build_fzf_opts(config.todos.fzf_opts),
     on_select = open_rg_selection,
@@ -117,6 +126,7 @@ S.oldfiles = function()
   picker.pick({
     source = lines,
     preview = preview(),
+    title = " Old Files ",
     on_select = function(selection)
       if selection and selection ~= "" then
         vim.cmd("edit " .. vim.fn.fnameescape(selection))
