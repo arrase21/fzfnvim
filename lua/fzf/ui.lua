@@ -66,17 +66,21 @@ function M.fzf_ui(cmd, on_select, win_opts)
     col = math.floor((vim.o.columns - width) / 2)
   end
 
+  local border = (win_opts and win_opts.border) or config.options.ui.border or "rounded"
+  local title = (win_opts and win_opts.title) or config.options.ui.title or " FZF "
+  local title_pos = (win_opts and win_opts.title_pos) or config.options.ui.title_pos or "center"
+
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
     width = width,
     height = height,
     row = row,
     col = col,
-    border = "rounded",
+    border = border,
     style = "minimal",
     zindex = 50,
-    title = " FZF ",
-    title_pos = "center",
+    title = title,
+    title_pos = title_pos,
   })
 
   local root = vim.fn.getcwd()

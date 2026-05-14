@@ -5,51 +5,62 @@ local L = {}
 
 local ansi_cache = {}
 
-local function get_ansi(hl_name)
+local function rgb_ansi(r, g, b)
+  return string.format("\27[38;2;%d;%d;%dm", r, g, b)
+end
+
+local function get_ansi(hl_name, fallback)
   if ansi_cache[hl_name] then
     return ansi_cache[hl_name]
   end
-  local hl = vim.api.nvim_get_hl(0, { name = hl_name })
+  local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = true })
+  local ansi
   if hl and hl.fg then
-    local ansi = string.format(
+    ansi = string.format(
       "\27[38;2;%d;%d;%dm",
       bit.band(bit.rshift(hl.fg, 16), 0xFF),
       bit.band(bit.rshift(hl.fg, 8), 0xFF),
       bit.band(hl.fg, 0xFF)
     )
-    ansi_cache[hl_name] = ansi
-    return ansi
+  elseif fallback then
+    ansi = rgb_ansi(fallback[1], fallback[2], fallback[3])
+  else
+    ansi = ""
   end
-  return ""
+  ansi_cache[hl_name] = ansi
+  return ansi
 end
 
 local severity_hl = {
-  [1] = "FzfDiagError",
-  [2] = "FzfDiagWarn",
-  [3] = "FzfDiagInfo",
-  [4] = "FzfDiagHint",
+  [1] = { "DiagnosticError", { 255, 85, 85 } },
+  [2] = { "DiagnosticWarn", { 255, 200, 50 } },
+  [3] = { "DiagnosticInfo", { 85, 185, 255 } },
+  [4] = { "DiagnosticHint", { 170, 170, 170 } },
 }
 
 local severity_icons = {
-  [1] = " Error",
-  [2] = " Warn",
-  [3] = " Info",
-  [4] = " Hint",
+  [1] = "  ",
+  [2] = "  ",
+  [3] = "  ",
+  [4] = "  ",
 }
 
 local reset = "\27[0m"
-
-vim.api.nvim_set_hl(0, "FzfDiagError", { link = "DiagnosticError", default = true })
-vim.api.nvim_set_hl(0, "FzfDiagWarn", { link = "DiagnosticWarn", default = true })
-vim.api.nvim_set_hl(0, "FzfDiagInfo", { link = "DiagnosticInfo", default = true })
-vim.api.nvim_set_hl(0, "FzfDiagHint", { link = "DiagnosticHint", default = true })
+local bold = "\27[1m"
 
 local function preview_cmd()
   return require("fzf.ui").get_preview_cmd()
 end
 
 L.diagnostics = function()
-  local diagnostics = vim.diagnostic.get(nil)
+  local bufnrs = vim.api.nvim_list_bufs()
+  local diagnostics = {}
+
+  for _, buf in ipairs(bufnrs) do
+    if vim.api.nvim_buf_is_loaded(buf) then
+      vim.list_extend(diagnostics, vim.diagnostic.get(buf))
+    end
+  end
 
   if #diagnostics == 0 then
     helpers.notify("There are no diagnostics", vim.log.levels.INFO)
@@ -57,7 +68,7 @@ L.diagnostics = function()
   end
 
   table.sort(diagnostics, function(a, b)
-    return a.severity < b.severity
+    return (a.severity or 4) < (b.severity or 4)
   end)
 
   local lines = {}
@@ -68,27 +79,25 @@ L.diagnostics = function()
     if abs_path ~= "" then
       local fname = vim.fn.fnamemodify(abs_path, ":~:.")
 
-      local color = get_ansi(severity_hl[d.severity])
+      local sev = severity_hl[d.severity] or severity_hl[4]
 
-      local icon = severity_icons[d.severity] or "?"
+      local color = get_ansi(sev[1], sev[2])
 
-      local msg = d.message:gsub("\n", " ")
+      local icon = severity_icons[d.severity] or " ? "
+
+      local msg = d.message:gsub("[\n\t]", " ")
+
+      local lnum = d.lnum + 1
+      local col = d.col + 1
 
       table.insert(
         lines,
         string.format(
           "%s%s%s\t%s%s:%d:%d%s\t%s\t%d\t%d\t%s",
-          color,
-          icon,
-          reset,
-          color,
-          fname,
-          d.lnum + 1,
-          d.col + 1,
-          reset,
+          color, icon, reset,
+          color, fname, lnum, col, reset,
           msg,
-          d.lnum + 1,
-          d.col + 1,
+          lnum, col,
           abs_path
         )
       )
@@ -111,9 +120,7 @@ L.diagnostics = function()
       local lnum = parts[4]
       local col = parts[5]
       local abs_path = parts[6]
-
       lnum = lnum and lnum:gsub("\27%[[%d;]*m", "")
-
       col = col and col:gsub("\27%[[%d;]*m", "")
 
       if abs_path and lnum then

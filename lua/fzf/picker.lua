@@ -31,7 +31,8 @@ function M.pick(opts)
   end
 
   if opts.delimiter then
-    table.insert(flags, string.format("--delimiter %s", opts.delimiter))
+    local delim = opts.delimiter:gsub("\t", "\\t")
+    table.insert(flags, string.format("--delimiter '%s'", delim))
   end
 
   if opts.with_nth then
@@ -79,15 +80,12 @@ function M.pick(opts)
 
   if not win_opts then
     local layout = opts.layout or config.options.ui.layout
+    local resolver = config.layout_presets[layout]
 
-    if layout == "dropdown" then
-      local dd = config.options.ui.dropdown
-      win_opts = {
-        row = 0,
-        col = 0,
-        width = math.floor(vim.o.columns * (dd.width or 1.0)),
-        height = math.floor(vim.o.lines * (dd.height or 0.4)),
-      }
+    if resolver then
+      win_opts = resolver(config.options.ui)
+    else
+      win_opts = config.layout_presets.center(config.options.ui)
     end
   end
 
