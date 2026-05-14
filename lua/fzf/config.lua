@@ -2,14 +2,19 @@ local M = {}
 
 M.layout_presets = {
   center = function(opts)
-    local w = math.floor(vim.o.columns * (opts.width or 0.90))
-    local h = math.floor(vim.o.lines * (opts.height or 0.65))
+    local c = opts.center or {}
+    local w = math.floor(vim.o.columns * (c.width or opts.width or 0.90))
+    local h = math.floor(vim.o.lines * (c.height or opts.height or 0.65))
     return {
       width = w,
       height = h,
       row = math.floor((vim.o.lines - h) / 2),
       col = math.floor((vim.o.columns - w) / 2),
-      preview_window = "right:60%",
+      border = "none",
+      preview_window = c.preview_window or "right:55%:border-rounded",
+      fzf_opts = {
+        "--border=rounded",
+      },
     }
   end,
   fullscreen = function(opts)
@@ -86,6 +91,11 @@ M.options = {
     border = "rounded",
     title = " FZF ",
     title_pos = "center",
+    center = {
+      width = 0.90,
+      height = 0.65,
+      preview_window = "right:55%:border-rounded",
+    },
     fullscreen = {
       width = 1.0,
       height = 1.0,

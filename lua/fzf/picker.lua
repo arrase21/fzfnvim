@@ -84,6 +84,11 @@ function M.pick(opts)
     end
   end
 
+  if win_opts.title then
+    table.insert(flags, string.format("--border-label='%s'", win_opts.title))
+  end
+  table.insert(flags, "--preview-label=' Preview '")
+
   local flag_str = ""
   if #flags > 0 then
     flag_str = " " .. table.concat(flags, " ")

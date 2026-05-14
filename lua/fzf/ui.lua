@@ -1,12 +1,22 @@
 local config = require("fzf.config")
 local M = {}
 
+local function short_path(path)
+  local parts = vim.split(path, "/")
+  if #parts <= 2 then return path end
+  local last = table.concat({parts[#parts - 1], parts[#parts]}, "/")
+  if #last > 25 then
+    return parts[#parts]
+  end
+  return last
+end
+
 function M.get_fzf_base()
   local parts = {}
   for _, opt in ipairs(config.options.fzf.base) do
     parts[#parts + 1] = opt
   end
-  local cwd = vim.fn.fnamemodify(vim.fn.getcwd(), ":~")
+  local cwd = short_path(vim.fn.fnamemodify(vim.fn.getcwd(), ":~"))
   parts[#parts + 1] = string.format("--prompt=' %s 󰍉  '", cwd)
   return "fzf " .. table.concat(parts, " ")
 end
