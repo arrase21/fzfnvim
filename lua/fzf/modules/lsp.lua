@@ -39,10 +39,10 @@ local severity_hl = {
 }
 
 local severity_icons = {
-  [1] = "  ",
-  [2] = "  ",
-  [3] = "  ",
-  [4] = "  ",
+  [1] = "💀",
+  [2] = " ",
+  [3] = "󰌵 ",
+  [4] = " ",
 }
 
 local reset = "\27[0m"
@@ -52,16 +52,7 @@ local function preview_cmd()
   return require("fzf.ui").get_preview_cmd()
 end
 
-L.diagnostics = function()
-  local bufnrs = vim.api.nvim_list_bufs()
-  local diagnostics = {}
-
-  for _, buf in ipairs(bufnrs) do
-    if vim.api.nvim_buf_is_loaded(buf) then
-      vim.list_extend(diagnostics, vim.diagnostic.get(buf))
-    end
-  end
-
+local function process_and_show(diagnostics)
   if #diagnostics == 0 then
     helpers.notify("There are no diagnostics", vim.log.levels.INFO)
     return
@@ -74,7 +65,7 @@ L.diagnostics = function()
   local lines = {}
 
   for _, d in ipairs(diagnostics) do
-    local abs_path = vim.api.nvim_buf_get_name(d.bufnr)
+    local abs_path = d.filename or (d.bufnr and vim.api.nvim_buf_get_name(d.bufnr)) or ""
 
     if abs_path ~= "" then
       local fname = vim.fn.fnamemodify(abs_path, ":~:.")
@@ -129,6 +120,25 @@ L.diagnostics = function()
       end
     end,
   })
+end
+
+L.diagnostics = function()
+  -- Get diagnostics from ALL existing buffers (like fzf-lua does)
+  -- This includes unloaded buffers that still have diagnostics stored
+  local diagnostics = {}
+  local all_diags = vim.diagnostic.get(nil)
+
+  for _, d in ipairs(all_diags) do
+    if d.bufnr and vim.api.nvim_buf_is_valid(d.bufnr) then
+      local filename = vim.api.nvim_buf_get_name(d.bufnr)
+      if filename ~= "" then
+        d.filename = filename
+        table.insert(diagnostics, d)
+      end
+    end
+  end
+
+  process_and_show(diagnostics)
 end
 
 local function location_picker(method, title)
