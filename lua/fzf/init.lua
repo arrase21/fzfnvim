@@ -52,6 +52,9 @@ function M.setup(opts)
 
   if cfg.ui_select then
     require("fzf.ui_select").setup()
+  elseif _G.__fzf_original_ui_select then
+    vim.ui.select = _G.__fzf_original_ui_select
+    _G.__fzf_original_ui_select = nil
   end
 end
 

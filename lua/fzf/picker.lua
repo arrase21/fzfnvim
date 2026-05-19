@@ -105,7 +105,7 @@ function M.pick(opts)
   end
 
   ui.fzf_ui(full_cmd, function(selection, root)
-    if opts.on_select and selection ~= "" then
+    if opts.on_select and selection and selection ~= "" then
       opts.on_select(selection, { root = root })
     end
   end, win_opts)

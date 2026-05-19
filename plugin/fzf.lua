@@ -4,8 +4,6 @@ end
 
 vim.g.loaded_fzf = 1
 
-require("fzf").setup()
-
 local fzf = require("fzf")
 
 -- search

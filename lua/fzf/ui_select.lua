@@ -27,6 +27,10 @@ local function build_fzf_flags(win_opts)
 end
 
 function M.setup()
+  if not _G.__fzf_original_ui_select then
+    _G.__fzf_original_ui_select = vim.ui.select
+  end
+
   vim.ui.select = function(items, opts, on_choice)
     opts = opts or {}
 
@@ -52,12 +56,17 @@ function M.setup()
     )
 
     ui.fzf_ui(cmd, function(selection)
+      if selection == nil then
+        on_choice(nil, nil)
+        return
+      end
       for i, item in ipairs(items) do
         if format_item(item) == selection then
           on_choice(item, i)
           return
         end
       end
+      on_choice(nil, nil)
     end, win_opts)
   end
 end

@@ -116,20 +116,23 @@ function M.fzf_ui(cmd, on_select, win_opts)
           vim.api.nvim_win_close(backdrop, true)
         end
 
+        local selection = nil
+
         if code == 0 and vim.fn.filereadable(temp) == 1 then
           local f = io.open(temp, "r")
 
           if f then
-            local selection = f:read("*all"):gsub("\n$", "")
-
+            selection = f:read("*all"):gsub("\n$", "")
             f:close()
-
-            os.remove(temp)
-
-            if selection ~= "" and on_select then
-              on_select(selection, root)
-            end
           end
+        end
+
+        if vim.fn.filereadable(temp) == 1 then
+          os.remove(temp)
+        end
+
+        if on_select then
+          on_select(selection, root)
         end
       end)
     end,
