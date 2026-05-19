@@ -1,0 +1,4 @@
+.*
+!/.gitignore
+!/.luarc.json
+!/.github/
