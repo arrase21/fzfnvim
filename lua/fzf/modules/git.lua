@@ -34,7 +34,7 @@ G.status = function()
   picker.pick({
     source = "git status --short",
     preview = require("fzf.ui").get_preview_cmd()
-      .. [[ --line-range :500 "$(echo {} | awk '{print $NF}')"]],
+      .. [[ --line-range :500 "$(x={}; echo "${x##* }")"]],
     title = " Git Status ",
     on_select = function(selection)
       local file = selection:match("^..%s+(.+)$")
@@ -109,13 +109,68 @@ G.stash = function()
   })
 end
 
+local function get_diff_files()
+  local root = vim.fn.getcwd() .. "/"
+  local files, seen = {}, {}
+  for _, list in ipairs({
+    vim.fn.systemlist("git diff --name-only") or {},
+    vim.fn.systemlist("git diff --cached --name-only") or {},
+  }) do
+    for _, f in ipairs(list) do
+      local clean = f:gsub("[\r\n]+$", "")
+      if clean ~= "" and not seen[clean] then
+        table.insert(files, root .. clean)
+        seen[clean] = true
+      end
+    end
+  end
+  return files
+end
+
 G.diff = function()
+  local files = get_diff_files()
+  if #files == 0 then
+    return helpers.notify("No changes found", vim.log.levels.INFO)
+  end
   picker.pick({
-    source = "git diff --name-only",
-    preview = "git diff --color=always {}",
+    source = files,
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
     title = " Git Diff ",
-    on_select = function(selection, ctx)
-      helpers.jump(helpers.join_path(ctx.root, selection), 1, 1)
+    bind = {
+      ["ctrl-d"] = "preview-half-page-down",
+      ["ctrl-u"] = "preview-half-page-up",
+    },
+    on_select = function(selection)
+      if not selection then return end
+      helpers.jump(selection, 1, 1)
+    end,
+  })
+end
+
+G.diff_staged = function()
+  local root = vim.fn.getcwd() .. "/"
+  local raw = vim.fn.systemlist("git diff --cached --name-only") or {}
+  local files = {}
+  for _, f in ipairs(raw) do
+    local clean = f:gsub("[\r\n]+$", "")
+    if clean ~= "" then
+      table.insert(files, root .. clean)
+    end
+  end
+  if #files == 0 then
+    return helpers.notify("No staged changes", vim.log.levels.INFO)
+  end
+  picker.pick({
+    source = files,
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
+    title = " Git Diff (Staged) ",
+    bind = {
+      ["ctrl-d"] = "preview-half-page-down",
+      ["ctrl-u"] = "preview-half-page-up",
+    },
+    on_select = function(selection)
+      if not selection then return end
+      helpers.jump(selection, 1, 1)
     end,
   })
 end

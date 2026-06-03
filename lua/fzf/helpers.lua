@@ -34,24 +34,25 @@ local colors = {
 
 local M = {}
 
+M.reset = "\27[0m"
+M.bold = "\27[1m"
+local reset = M.reset
+local bold = M.bold
+
 function M.notify(msg, level)
   vim.notify(msg, level or vim.log.levels.INFO)
 end
 
 function M.jump(filepath, line, col)
   vim.cmd("hide edit " .. vim.fn.fnameescape(filepath))
-
   local l = tonumber(line) or 1
   local c = tonumber(col) or 1
-
   pcall(vim.api.nvim_win_set_cursor, 0, { l, c - 1 })
-
   vim.cmd("normal! zz")
 end
 
 function M.build_fzf_opts(opts)
   local parts = {}
-
   for key, value in pairs(opts or {}) do
     if value == "" then
       table.insert(parts, key)
@@ -59,19 +60,15 @@ function M.build_fzf_opts(opts)
       table.insert(parts, key .. "=" .. value)
     end
   end
-
   return table.concat(parts, " ")
 end
 
 function M.join_path(root, file)
+  if not root or not file then return root or file or "" end
   root = root:gsub("/$", "")
   file = file:gsub("^/", "")
-
   return root .. "/" .. file
 end
-
-M.reset = "\27[0m"
-local reset = M.reset
 
 function M.ansi_color(r, g, b)
   return string.format("\27[38;2;%d;%d;%dm", r, g, b)
@@ -116,6 +113,62 @@ end
 
 function M.strip_icon(line)
   return line:gsub("^%S+%s+", "", 1)
+end
+
+function M.get_ansi(hl_name, fallback)
+  local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = true })
+  local ansi
+  if hl and hl.fg then
+    ansi = string.format(
+      "\27[38;2;%d;%d;%dm",
+      bit.band(bit.rshift(hl.fg, 16), 0xFF),
+      bit.band(bit.rshift(hl.fg, 8), 0xFF),
+      bit.band(hl.fg, 0xFF)
+    )
+  elseif fallback then
+    ansi = M.ansi_color(fallback[1], fallback[2], fallback[3])
+  else
+    ansi = ""
+  end
+  return ansi
+end
+
+local kind_icons = {
+  File = "", Module = "", Namespace = "", Package = "", Class = "",
+  Method = "", Property = "", Field = "", Constructor = "", Enum = "",
+  Interface = "", Function = "", Variable = "", Constant = "", String = "",
+  Number = "", Boolean = "", Array = "", Object = "", Key = "",
+  Null = "", EnumMember = "", Struct = "", Event = "", Operator = "",
+  TypeParameter = "", Keyword = "", Snippet = "", Folder = "", Unit = "",
+  Value = "", Reference = "", Text = "",
+}
+
+function M.kind_icon(kind)
+  return kind_icons[kind] or ""
+end
+
+local severity_hl = {
+  [1] = { "DiagnosticError", { 255, 85, 85 } },
+  [2] = { "DiagnosticWarn", { 255, 200, 50 } },
+  [3] = { "DiagnosticInfo", { 85, 185, 255 } },
+  [4] = { "DiagnosticHint", { 170, 170, 170 } },
+}
+
+function M.severity_ansi(severity)
+  local sev = severity_hl[severity] or severity_hl[4]
+  return M.get_ansi(sev[1], sev[2])
+end
+
+local severity_icons = {
+  [1] = " ", [2] = " ", [3] = "󰌵 ", [4] = " ",
+}
+
+function M.severity_icon(severity)
+  return severity_icons[severity] or " ? "
+end
+
+function M.escape_shell(str)
+  return str:gsub("'", "'\\''")
 end
 
 return M

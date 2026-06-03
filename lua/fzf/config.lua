@@ -64,13 +64,78 @@ local defaults = {
     fzf_opts = {
       ["--exact"] = "",
     },
+    rg_opts = "--column --line-number --no-heading --color=always --smart-case",
+  },
+
+  grep_word = {
+    rg_opts = "--column --line-number --no-heading --color=always --smart-case",
+  },
+
+  live_grep = {
+    rg_opts = "--column --line-number --no-heading --color=always --smart-case",
   },
 
   buffers = {
     fzf_opts = {},
   },
 
+  help_tags = {
+    fzf_opts = {},
+  },
+
+  man_pages = {
+    fzf_opts = {},
+  },
+
+  keymaps = {
+    fzf_opts = {},
+  },
+
+  commands = {
+    fzf_opts = {},
+  },
+
+  highlights = {
+    fzf_opts = {},
+  },
+
+  marks = {
+    fzf_opts = {},
+  },
+
+  registers = {
+    fzf_opts = {},
+  },
+
+  jumps = {
+    fzf_opts = {},
+  },
+
+  changes = {
+    fzf_opts = {},
+  },
+
+  spell_suggest = {
+    fzf_opts = {},
+  },
+
+  colorschemes = {
+    fzf_opts = {},
+  },
+
+  quickfix = {
+    fzf_opts = {},
+  },
+
+  loclist = {
+    fzf_opts = {},
+  },
+
   todos = {
+    fzf_opts = {},
+  },
+
+  oldfiles = {
     fzf_opts = {},
   },
 
@@ -122,7 +187,6 @@ local defaults = {
       "--marker='✓'",
       "--separator='─'",
       "--scrollbar='│'",
-
     },
   },
 

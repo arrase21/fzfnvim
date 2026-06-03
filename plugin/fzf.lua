@@ -19,6 +19,10 @@ vim.api.nvim_create_user_command("FzfGrepW", function()
   fzf.grep_word()
 end, {})
 
+vim.api.nvim_create_user_command("FzfLiveGrep", function()
+  fzf.live_grep()
+end, {})
+
 vim.api.nvim_create_user_command("FzfTodos", function()
   fzf.todos()
 end, {})
@@ -29,6 +33,66 @@ end, {})
 
 vim.api.nvim_create_user_command("FzfOldFiles", function()
   fzf.oldfiles()
+end, {})
+
+vim.api.nvim_create_user_command("FzfHelpTags", function()
+  fzf.help_tags()
+end, {})
+
+vim.api.nvim_create_user_command("FzfManPages", function()
+  fzf.man_pages()
+end, {})
+
+vim.api.nvim_create_user_command("FzfKeymaps", function()
+  fzf.keymaps()
+end, {})
+
+vim.api.nvim_create_user_command("FzfCommands", function()
+  fzf.commands()
+end, {})
+
+vim.api.nvim_create_user_command("FzfHighlights", function()
+  fzf.highlights()
+end, {})
+
+vim.api.nvim_create_user_command("FzfMarks", function()
+  fzf.marks()
+end, {})
+
+vim.api.nvim_create_user_command("FzfRegisters", function()
+  fzf.registers()
+end, {})
+
+vim.api.nvim_create_user_command("FzfJumps", function()
+  fzf.jumps()
+end, {})
+
+vim.api.nvim_create_user_command("FzfChanges", function()
+  fzf.changes()
+end, {})
+
+vim.api.nvim_create_user_command("FzfSpellSuggest", function()
+  fzf.spell_suggest()
+end, {})
+
+vim.api.nvim_create_user_command("FzfColorschemes", function()
+  fzf.colorschemes()
+end, {})
+
+vim.api.nvim_create_user_command("FzfQuickfix", function()
+  fzf.quickfix()
+end, {})
+
+vim.api.nvim_create_user_command("FzfLoclist", function()
+  fzf.loclist()
+end, {})
+
+vim.api.nvim_create_user_command("FzfSearchHistory", function()
+  fzf.search_history()
+end, {})
+
+vim.api.nvim_create_user_command("FzfResume", function()
+  fzf.resume()
 end, {})
 
 -- git
@@ -50,6 +114,10 @@ end, {})
 
 vim.api.nvim_create_user_command("FzfGitDiff", function()
   fzf.git_diff()
+end, {})
+
+vim.api.nvim_create_user_command("FzfGitDiffStaged", function()
+  fzf.git_diff_staged()
 end, {})
 
 vim.api.nvim_create_user_command("FzfGitStash", function()
