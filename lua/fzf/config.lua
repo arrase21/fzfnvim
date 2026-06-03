@@ -3,18 +3,15 @@ local M = {}
 M.layout_presets = {
   center = function(opts)
     local c = opts.center or {}
-    local w = math.floor(vim.o.columns * (c.width or opts.width or 0.90))
-    local h = math.floor(vim.o.lines * (c.height or opts.height or 0.65))
+    local w = math.floor(vim.o.columns * (c.width or opts.width or 0.80))
+    local h = math.floor(vim.o.lines * (c.height or opts.height or 0.80))
     return {
       width = w,
       height = h,
-      row = math.floor((vim.o.lines - h) / 2),
+      row = math.floor((vim.o.lines - h) / 3),
       col = math.floor((vim.o.columns - w) / 2),
-      border = "none",
+      border = nil,
       preview_window = c.preview_window or "right:55%:border-rounded",
-      fzf_opts = {
-        "--border=rounded",
-      },
     }
   end,
   fullscreen = function(opts)
@@ -49,13 +46,8 @@ M.layout_presets = {
       height = h,
       row = math.floor((vim.o.lines - h) / 2),
       col = math.floor((vim.o.columns - w) / 2),
-      border = v.border or "none",
+      border = nil,
       preview_window = v.preview_window or "bottom:50%:border-top",
-      fzf_opts = v.fzf_opts or {
-        "--border=rounded",
-        "--border-label=' Files '",
-        "--preview-label=' Preview '",
-      },
     }
   end,
 }
@@ -84,17 +76,17 @@ local defaults = {
 
   ui = {
     layout = "center",
-    width = 0.75,
-    height = 0.85,
+    width = 0.80,
+    height = 0.80,
     backdrop = true,
     backdrop_bg = "#000000",
     border = "rounded",
     title = " FZF ",
     title_pos = "center",
     center = {
-      width = 0.75,
-      height = 0.85,
-      preview_window = "right:65%:border-rounded",
+      width = 0.80,
+      height = 0.80,
+      preview_window = "right:55%:border-rounded",
     },
     fullscreen = {
       width = 1.0,
@@ -109,13 +101,7 @@ local defaults = {
     vertical = {
       width = 0.90,
       height = 0.80,
-      border = "none",
       preview_window = "bottom:50%:border-top",
-      fzf_opts = {
-        "--border=rounded",
-        "--border-label=' Files '",
-        "--preview-label=' Preview '",
-      },
     },
   },
 
@@ -136,6 +122,7 @@ local defaults = {
       "--marker='✓'",
       "--separator='─'",
       "--scrollbar='│'",
+
     },
   },
 

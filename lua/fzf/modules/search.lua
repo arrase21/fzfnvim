@@ -21,17 +21,13 @@ local function open_rg_selection(selection, ctx)
 end
 
 S.files = function()
-  local files = vim.fn.systemlist("rg --files --hidden -g '!.git'")
-  if #files == 0 then return end
   picker.pick({
-    source = helpers.add_file_icons(files),
-    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {2}",
+    source = "rg --files --hidden --no-ignore-vcs -g '!.git'",
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
     title = " Files ",
-    delimiter = "\t",
     fzf_opts = helpers.build_fzf_opts(config.files.fzf_opts),
     on_select = function(selection, ctx)
-      local file = helpers.strip_icon(selection)
-      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, file)))
+      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, selection)))
     end,
   })
 end

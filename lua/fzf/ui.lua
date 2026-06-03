@@ -47,6 +47,7 @@ function M.create_backdrop()
     focusable = false,
     style = "minimal",
     zindex = 1,
+    border = "none",
   })
 
   vim.api.nvim_set_hl(0, "MyFzfBackdrop", {

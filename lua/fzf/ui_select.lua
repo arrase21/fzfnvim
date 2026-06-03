@@ -19,9 +19,6 @@ local function build_fzf_flags(win_opts)
       table.insert(parts, opt)
     end
   end
-  if win_opts.title then
-    table.insert(parts, string.format("--border-label='%s'", win_opts.title))
-  end
   if #parts == 0 then return "" end
   return " " .. table.concat(parts, " ")
 end
