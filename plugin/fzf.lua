@@ -63,10 +63,6 @@ vim.api.nvim_create_user_command("FzfRegisters", function()
   fzf.registers()
 end, {})
 
-vim.api.nvim_create_user_command("FzfJumps", function()
-  fzf.jumps()
-end, {})
-
 vim.api.nvim_create_user_command("FzfChanges", function()
   fzf.changes()
 end, {})

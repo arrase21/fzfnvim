@@ -27,7 +27,6 @@ M.commands = M.search.commands
 M.highlights = M.search.highlights
 M.marks = M.search.marks
 M.registers = M.search.registers
-M.jumps = M.search.jumps
 M.changes = M.search.changes
 M.spell_suggest = M.search.spell_suggest
 M.colorschemes = M.search.colorschemes

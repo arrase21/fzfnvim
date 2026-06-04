@@ -110,9 +110,9 @@ local function build_fzf_flags(win_opts, opts)
   if opts.bind then
     local parts = {}
     for key, action in pairs(opts.bind) do
-      table.insert(parts, key .. ":" .. action)
+      table.insert(parts, key .. ":" .. helpers.escape_shell(action))
     end
-    table.insert(flags, string.format("--bind '%s'", table.concat(parts, ",")))
+    table.insert(flags, "--bind '" .. table.concat(parts, ",") .. "'")
   end
 
   if opts.fzf_opts then
@@ -243,6 +243,10 @@ function M.pick(opts)
           else
             opts.on_select(selection, { root = root })
           end
+        end
+
+        if opts.on_cleanup then
+          opts.on_cleanup(selection ~= nil)
         end
 
         pcall(os.remove, temp_out)

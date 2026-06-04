@@ -64,15 +64,15 @@ local defaults = {
     fzf_opts = {
       ["--exact"] = "",
     },
-    rg_opts = "--column --line-number --no-heading --color=always --smart-case",
+    rg_opts = "--column --line-number --no-heading --color=never --smart-case",
   },
 
   grep_word = {
-    rg_opts = "--column --line-number --no-heading --color=always --smart-case",
+    rg_opts = "--column --line-number --no-heading --color=never --smart-case",
   },
 
   live_grep = {
-    rg_opts = "--column --line-number --no-heading --color=always --smart-case",
+    rg_opts = "--column --line-number --no-heading --color=never --smart-case",
   },
 
   buffers = {

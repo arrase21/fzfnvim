@@ -16,7 +16,7 @@ end
 
 local function rg_opts_str(key)
   local opts = config[key] and config[key].rg_opts
-  return opts or "--column --line-number --no-heading --color=always --smart-case"
+  return opts or "--column --line-number --no-heading --color=never --smart-case"
 end
 
 local function open_rg_selection(selection, ctx)
@@ -233,7 +233,7 @@ S.oldfiles = function()
   picker.pick({
     source = lines,
     preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {3}"
+      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {r3}"
     end,
     title = " Old Files ",
     delimiter = "\t",
@@ -412,7 +412,7 @@ S.marks = function()
       ["ctrl-u"] = "preview-half-page-up",
     },
     preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --line-range {3}: --highlight-line {3} {2}"
+      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 --highlight-line {3} {2}"
     end,
     on_select = function(selection)
       if not selection then return end
@@ -461,60 +461,38 @@ S.registers = function()
   })
 end
 
--- Jump list
-S.jumps = function()
-  local jumps = vim.fn.getjumplist()
-  local entries = jumps[1] or {}
-  local lines = {}
-  for i, j in ipairs(entries) do
-    local file = j.fname or ""
-    local lnum = j.lnum or 1
-    local col = j.col or 1
-    local fname = vim.fn.fnamemodify(file, ":~:.")
-    table.insert(lines, string.format("%s:%d:%d", fname, lnum, col))
-  end
-
-  picker.pick({
-    source = lines,
-    title = " Jumps ",
-    delimiter = ":",
-    preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --highlight-line {2} {1}"
-    end,
-    bind = {
-      ["ctrl-d"] = "preview-half-page-down",
-      ["ctrl-u"] = "preview-half-page-up",
-    },
-    on_select = function(selection)
-      if not selection then return end
-      local file, lnum, col = selection:match("^(.-):(%d+):(%d+)")
-      if file then
-        helpers.jump(file, lnum, col)
-      end
-    end,
-  })
-end
+-- Jump list (removed - use builtin <C-o>/<C-i>)
 
 -- Change list
 S.changes = function()
-  local changes = vim.fn.getchangelist(0)
-  local entries = changes[1] or {}
   local lines = {}
-  for _, c in ipairs(entries) do
-    if c.fname then
-      local lnum = c.lnum or 1
-      local col = c.col or 1
-      local fname = vim.fn.fnamemodify(c.fname, ":~:.")
-      table.insert(lines, string.format("%s:%d:%d", fname, lnum, col))
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local list = vim.fn.getchangelist(bufnr)
+      local entries = list[1] or {}
+      for _, c in ipairs(entries) do
+        local file = c.fname or ""
+        if file ~= "" then
+          local lnum = c.lnum or 1
+          local col = c.col or 1
+          local rel = vim.fn.fnamemodify(file, ":~:.")
+          table.insert(lines, string.format("%s\t%s\t%d\t%d", rel, file, lnum, col))
+        end
+      end
     end
+  end
+
+  if #lines == 0 then
+    return helpers.notify("Change list is empty")
   end
 
   picker.pick({
     source = lines,
     title = " Changes ",
-    delimiter = ":",
+    delimiter = "\t",
+    with_nth = "1",
     preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --highlight-line {2} {1}"
+      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 --highlight-line {3} {2}"
     end,
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -522,7 +500,8 @@ S.changes = function()
     },
     on_select = function(selection)
       if not selection then return end
-      local file, lnum, col = selection:match("^(.-):(%d+):(%d+)")
+      local parts = vim.split(selection, "\t")
+      local file, lnum, col = parts[2], parts[3], parts[4]
       if file then
         helpers.jump(file, lnum, col)
       end
@@ -533,14 +512,18 @@ end
 -- Spell suggest
 S.spell_suggest = function()
   local word = vim.fn.expand("<cword>")
-  local suggestions = vim.fn.spellsuggest(word, 50)
+  local ok, suggestions = pcall(vim.fn.spellsuggest, word, 50)
+  if not ok then
+    return helpers.notify("Spell check not configured (:set spelllang=en)")
+  end
+
   local lines = {}
   for _, s in ipairs(suggestions) do
     table.insert(lines, s)
   end
 
   if #lines == 0 then
-    return helpers.notify("No spell suggestions")
+    return helpers.notify("No spell suggestions for '" .. word .. "'")
   end
 
   picker.pick({
@@ -561,26 +544,51 @@ end
 -- Colorschemes
 S.colorschemes = function()
   local schemes = vim.fn.getcompletion("", "color")
-  local lines = {}
-  for _, s in ipairs(schemes) do
-    table.insert(lines, s)
+  if not schemes or #schemes == 0 then
+    return helpers.notify("No colorschemes found")
   end
-  table.sort(lines)
+  table.sort(schemes)
+
+  local scheme_file = vim.fn.tempname()
+  local old_scheme = vim.g.colors_name or "default"
+
+  local timer
+  local selected = false
+
+  timer = vim.uv.new_timer()
+  timer:start(80, 80, vim.schedule_wrap(function()
+    local f = io.open(scheme_file, "r")
+    if f then
+      local name = f:read("*l")
+      f:close()
+      if name and name ~= "" and (vim.g.colors_name or "") ~= name then
+        pcall(vim.cmd, "colorscheme " .. name)
+      end
+    end
+  end))
 
   picker.pick({
-    source = lines,
+    source = schemes,
     title = " Colorschemes ",
     preview = function()
-      return "echo 'Preview not available'"
+      return "cat " .. vim.fn.shellescape(scheme_file) .. " 2>/dev/null; echo '<< live preview'"
     end,
     bind = {
-      ["ctrl-d"] = "preview-half-page-down",
-      ["ctrl-u"] = "preview-half-page-up",
+      ["focus"] = "execute-silent:echo {} > " .. vim.fn.shellescape(scheme_file),
     },
     on_select = function(selection)
       if selection then
+        selected = true
         vim.cmd("colorscheme " .. selection)
         helpers.notify("Colorscheme: " .. selection)
+      end
+    end,
+    on_cleanup = function(had_selection)
+      timer:stop()
+      timer:close()
+      pcall(os.remove, scheme_file)
+      if not had_selection then
+        pcall(vim.cmd, "colorscheme " .. old_scheme)
       end
     end,
   })
@@ -611,7 +619,7 @@ S.quickfix = function()
     delimiter = ":",
     with_nth = "1,2,3,4",
     preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --highlight-line {2} {1}"
+      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 --highlight-line {2} {1}"
     end,
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -631,7 +639,7 @@ end
 S.loclist = function()
   local loclist = vim.fn.getloclist(0)
   if not loclist or #loclist == 0 then
-    return helpers.notify("Location list is empty")
+    return helpers.notify("Location list is empty (use :lgrep, :lhelpgrep, etc.)")
   end
 
   local lines = {}
@@ -652,7 +660,7 @@ S.loclist = function()
     delimiter = ":",
     with_nth = "1,2,3,4",
     preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --highlight-line {2} {1}"
+      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 --highlight-line {2} {1}"
     end,
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -675,18 +683,28 @@ end
 
 -- Search history
 S.search_history = function()
-  local history = vim.fn.getreg("/")
-  if history == "" then
+  local lines = {}
+  local last = vim.fn.histnr("/")
+  if last and last > 0 then
+    for i = 1, math.min(last, 100) do
+      local entry = vim.fn.histget("/", i)
+      if entry and entry ~= "" then
+        table.insert(lines, entry)
+      end
+    end
+  end
+
+  if #lines == 0 then
     return helpers.notify("No search history")
   end
 
   picker.pick({
-    source = vim.split(history, "\n"),
+    source = lines,
     title = " Search History ",
     on_select = function(selection)
       if selection and selection ~= "" then
         vim.fn.setreg("/", selection)
-        vim.cmd("normal! n")
+        helpers.notify("Search pattern set: " .. selection)
       end
     end,
   })

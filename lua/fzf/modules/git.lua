@@ -109,8 +109,16 @@ G.stash = function()
   })
 end
 
+local function git_root()
+  local res = vim.fn.systemlist("git rev-parse --show-toplevel")
+  if res and #res > 0 then
+    return res[1]:gsub("[\r\n]+$", "") .. "/"
+  end
+  return vim.fn.getcwd() .. "/"
+end
+
 local function get_diff_files()
-  local root = vim.fn.getcwd() .. "/"
+  local root = git_root()
   local files, seen = {}, {}
   for _, list in ipairs({
     vim.fn.systemlist("git diff --name-only") or {},
@@ -134,7 +142,7 @@ G.diff = function()
   end
   picker.pick({
     source = files,
-    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
+    preview = "git diff --color=always -- {} 2>/dev/null; git diff --cached --color=always -- {} 2>/dev/null",
     title = " Git Diff ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -148,7 +156,7 @@ G.diff = function()
 end
 
 G.diff_staged = function()
-  local root = vim.fn.getcwd() .. "/"
+  local root = git_root()
   local raw = vim.fn.systemlist("git diff --cached --name-only") or {}
   local files = {}
   for _, f in ipairs(raw) do
