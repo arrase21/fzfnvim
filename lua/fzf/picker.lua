@@ -135,6 +135,8 @@ local function build_fzf_flags(win_opts, opts)
     table.insert(flags, "--preview-label=' Preview '")
   end
 
+  table.insert(flags, "--cycle")
+
   return " " .. table.concat(flags, " ")
 end
 
