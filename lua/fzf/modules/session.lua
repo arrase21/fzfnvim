@@ -89,6 +89,7 @@ S.session_load = function()
   picker.pick({
     source = sessions,
     title = " Sessions ",
+    prompt = "  ",
     preview = require("fzf.ui").get_preview_cmd()
       .. " --line-range :500 " .. vim.fn.shellescape(storage.sessions_dir) .. "/{}",
     on_select = function(selection)
@@ -113,6 +114,7 @@ S.session_delete = function()
     source = sessions,
     header = "Delete session",
     title = " Delete Session ",
+    prompt = "  ",
     preview = require("fzf.ui").get_preview_cmd()
       .. " --line-range :500 " .. vim.fn.shellescape(storage.sessions_dir) .. "/{}",
     on_select = function(selection)

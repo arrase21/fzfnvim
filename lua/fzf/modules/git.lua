@@ -22,6 +22,7 @@ G.files = function()
     source = "git ls-files --cached --others --exclude-standard",
     preview = require("fzf.ui").get_preview_cmd() .. " {}",
     title = " Git Files ",
+    prompt = "  ",
     on_select = function(selection)
       if selection and selection ~= "" then
         helpers.jump(selection, 1, 1)
@@ -36,6 +37,7 @@ G.status = function()
     preview = require("fzf.ui").get_preview_cmd()
       .. [[ --line-range :500 "$(x={}; echo "${x##* }")"]],
     title = " Git Status ",
+    prompt = "  ",
     on_select = function(selection)
       local file = selection:match("^..%s+(.+)$")
 
@@ -53,6 +55,7 @@ G.branches = function()
     preview = "git log --oneline --graph --decorate --color=always -20 "
       .. [[$(echo {} | sed "s#^[* ] ##" | sed "s#remotes/##")]],
     title = " Git Branches ",
+    prompt = "  ",
     on_select = function(selection)
       if not selection then
         return
@@ -71,6 +74,7 @@ G.commits = function()
     source = "git log --oneline --color=always",
     preview = "git show --color=always {1}",
     title = " Git Commits ",
+    prompt = "  ",
     on_select = function(selection, ctx)
       local hash = selection:match("^(%S+)")
 
@@ -86,6 +90,7 @@ G.stash = function()
     source = "git stash list",
     preview = "git stash show -p --color=always {1}",
     title = " Git Stash ",
+    prompt = "  ",
     on_select = function(selection)
       local stash = selection:match("^(stash@{%d+})")
 
@@ -144,6 +149,7 @@ G.diff = function()
     source = files,
     preview = "git diff --color=always -- {} 2>/dev/null; git diff --cached --color=always -- {} 2>/dev/null",
     title = " Git Diff ",
+    prompt = "  ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
@@ -172,6 +178,7 @@ G.diff_staged = function()
     source = files,
     preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
     title = " Git Diff (Staged) ",
+    prompt = "  ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",

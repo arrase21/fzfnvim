@@ -146,6 +146,8 @@ S.buffers = function()
     source = lines,
     preview = buffer_preview,
     title = " Buffers ",
+    prompt = "  ",
+    header = " [ctrl-x] close [ctrl-d/u] preview ",
     delimiter = "\t",
     with_nth = "2..3",
     bind = {
@@ -185,6 +187,7 @@ S.buffers_native = function()
     source = lines,
     preview = preview,
     title = " Buffers ",
+    prompt = "  ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
@@ -205,6 +208,7 @@ S.todos = function()
     ),
     preview = rg_preview,
     title = " TODOs ",
+    prompt = "  ",
     delimiter = ":",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -240,6 +244,7 @@ S.oldfiles = function()
       return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {r3}"
     end,
     title = " Old Files ",
+    prompt = "  ",
     delimiter = "\t",
     with_nth = "1..2",
     bind = {
@@ -274,6 +279,8 @@ S.help_tags = function()
   picker.pick({
     source = lines,
     title = " Help Tags ",
+    prompt = "  ",
+    header = " [ctrl-d/u] preview ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
@@ -293,6 +300,7 @@ S.man_pages = function()
   picker.pick({
     source = cmd,
     title = " Man Pages ",
+    prompt = "  ",
     delimiter = " - ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -324,6 +332,7 @@ S.keymaps = function()
   picker.pick({
     source = lines,
     title = " Keymaps ",
+    prompt = "  ",
     delimiter = "\t",
     with_nth = "1..3",
     bind = {
@@ -354,6 +363,8 @@ S.commands = function()
   picker.pick({
     source = lines,
     title = " Commands ",
+    prompt = "  ",
+    header = " [ctrl-d/u] preview ",
     delimiter = "\t",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
@@ -381,6 +392,7 @@ S.highlights = function()
   picker.pick({
     source = lines,
     title = " Highlights ",
+    prompt = "  ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
@@ -409,6 +421,7 @@ S.marks = function()
   picker.pick({
     source = lines,
     title = " Marks ",
+    prompt = "  ",
     delimiter = "\t",
     with_nth = "1,2",
     bind = {
@@ -447,6 +460,7 @@ S.registers = function()
   picker.pick({
     source = lines,
     title = " Registers ",
+    prompt = "  ",
     delimiter = "\t",
     with_nth = "1,3",
     bind = {
@@ -493,6 +507,7 @@ S.changes = function()
   picker.pick({
     source = lines,
     title = " Changes ",
+    prompt = "  ",
     delimiter = "\t",
     with_nth = "1",
     preview = function()
@@ -533,6 +548,7 @@ S.spell_suggest = function()
   picker.pick({
     source = lines,
     title = " Spell Suggest ",
+    prompt = "  ",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
@@ -574,6 +590,7 @@ S.colorschemes = function()
   picker.pick({
     source = schemes,
     title = " Colorschemes ",
+    prompt = "  ",
     preview = function()
       return "cat " .. vim.fn.shellescape(scheme_file) .. " 2>/dev/null; echo '<< live preview'"
     end,
@@ -620,6 +637,8 @@ S.quickfix = function()
   picker.pick({
     source = lines,
     title = " Quickfix ",
+    prompt = "  ",
+    header = " [ctrl-d/u] preview ",
     delimiter = ":",
     with_nth = "1,2,3,4",
     preview = function()
@@ -661,6 +680,7 @@ S.loclist = function()
   picker.pick({
     source = lines,
     title = " Location List ",
+    prompt = "  ",
     delimiter = ":",
     with_nth = "1,2,3,4",
     preview = function()
@@ -681,6 +701,203 @@ S.loclist = function()
 end
 
 -- Resume
+-- Jumps
+S.jumps = function()
+  local jump_list, current_idx = vim.fn.getjumplist()
+  if #jump_list == 0 then
+    return helpers.notify("No jumps")
+  end
+
+  local lines = {}
+  for i, jump in ipairs(jump_list) do
+    local bufnr, lnum, col = jump[1], jump[2], jump[3]
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    if name and name ~= "" then
+      local marker = (i - 1 == current_idx) and "▸" or " "
+      local short = vim.fn.fnamemodify(name, ":~:.")
+      table.insert(lines, string.format("%s\t%s\t%d\t%d", marker, short, lnum, col))
+    end
+  end
+
+  if #lines == 0 then
+    return helpers.notify("No valid jumps")
+  end
+
+  picker.pick({
+    source = lines,
+    preview = require("fzf.ui").get_preview_cmd()
+      .. " --line-range :500 --highlight-line {3} {2}",
+    title = " Jumps ",
+    prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1,2,3,4",
+    on_select = function(selection)
+      if not selection then return end
+      local parts = vim.split(selection, "\t")
+      local file, lnum = parts[2], tonumber(parts[3])
+      if file and lnum then
+        helpers.jump(file, lnum, 1)
+      end
+    end,
+  })
+end
+
+-- Messages
+S.messages = function()
+  local msg_text = vim.fn.execute("messages")
+  local lines = vim.split(msg_text, "\n")
+  if #lines == 0 or (#lines == 1 and lines[1] == "") then
+    return helpers.notify("No messages")
+  end
+
+  picker.pick({
+    source = lines,
+    title = " Messages ",
+    prompt = "  ",
+    on_select = function(selection)
+      if selection and selection ~= "" then
+        vim.api.nvim_echo({ { selection } }, false, {})
+      end
+    end,
+  })
+end
+
+-- Undo history
+S.undo = function()
+  local tree = vim.fn.undotree()
+  if not tree.entries or #tree.entries == 0 then
+    return helpers.notify("No undo history")
+  end
+
+  local lines = {}
+  for _, entry in ipairs(tree.entries) do
+    local time_str = os.date("%H:%M:%S", entry.time)
+    local msg = entry.msg or ""
+    local cur = entry.curhead and "▸" or " "
+    table.insert(lines, string.format("%s\t%s\t%s\t%d", cur, time_str, msg, entry.seq))
+  end
+
+  picker.pick({
+    source = lines,
+    title = " Undo History ",
+    prompt = "↩ ",
+    delimiter = "\t",
+    with_nth = "1,2,3",
+    on_select = function(selection)
+      if not selection then return end
+      local parts = vim.split(selection, "\t")
+      local seq = tonumber(parts[4])
+      if seq then
+        pcall(vim.cmd, "undo " .. seq)
+      end
+    end,
+  })
+end
+
+-- Command history
+S.commands_history = function()
+  local lines = {}
+  local last = vim.fn.histnr("cmd")
+  if last and last > 0 then
+    for i = 1, math.min(last, 100) do
+      local entry = vim.fn.histget("cmd", i)
+      if entry and entry ~= "" then
+        table.insert(lines, entry)
+      end
+    end
+  end
+
+  if #lines == 0 then
+    return helpers.notify("No command history")
+  end
+
+  picker.pick({
+    source = lines,
+    title = " Command History ",
+    prompt = "  ",
+    on_select = function(selection)
+      if selection and selection ~= "" then
+        vim.cmd(":" .. selection)
+      end
+    end,
+  })
+end
+
+-- Options
+S.options = function()
+  local names = vim.fn.getcompletion("", "option")
+  if #names == 0 then
+    return helpers.notify("No options")
+  end
+
+  local lines = {}
+  for _, name in ipairs(names) do
+    local ok, val = pcall(function()
+      local v = vim.opt[name]:get()
+      if type(v) == "table" then
+        return table.concat(v, ",")
+      end
+      return tostring(v)
+    end)
+    if ok then
+      table.insert(lines, string.format("%s\t%s", name, val))
+    end
+  end
+
+  picker.pick({
+    source = lines,
+    title = " Options ",
+    prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1,2",
+    on_select = function(selection)
+      if not selection then return end
+      local name = selection:match("^([^\t]+)")
+      if name then
+        vim.cmd("set " .. name .. "?")
+      end
+    end,
+  })
+end
+
+-- Windows
+S.windows = function()
+  local lines = {}
+  for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+    local wins = vim.api.nvim_tabpage_list_wins(tab)
+    local tab_nr = vim.api.nvim_tabpage_get_number(tab)
+    local is_cur = tab == vim.api.nvim_get_current_tabpage()
+    for _, win in ipairs(wins) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      local name = vim.api.nvim_buf_get_name(buf)
+      local short = name ~= "" and vim.fn.fnamemodify(name, ":~:.") or "[No Name]"
+      local cur_win = (win == vim.api.nvim_get_current_win()) and "▸" or " "
+      table.insert(lines, string.format("%s\tTab %d\t%s", cur_win, tab_nr, short))
+    end
+  end
+
+  if #lines == 0 then
+    return helpers.notify("No windows")
+  end
+
+  picker.pick({
+    source = lines,
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {3}",
+    title = " Windows ",
+    prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1,2,3",
+    on_select = function(selection)
+      if not selection then return end
+      local parts = vim.split(selection, "\t")
+      local file = parts[3]
+      if file and file ~= "[No Name]" then
+        vim.cmd("edit " .. vim.fn.fnameescape(file))
+      end
+    end,
+  })
+end
+
 S.resume = function()
   picker.resume()
 end
@@ -705,6 +922,7 @@ S.search_history = function()
   picker.pick({
     source = lines,
     title = " Search History ",
+    prompt = "  ",
     on_select = function(selection)
       if selection and selection ~= "" then
         vim.fn.setreg("/", selection)

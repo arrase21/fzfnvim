@@ -91,6 +91,30 @@ vim.api.nvim_create_user_command("FzfResume", function()
   fzf.resume()
 end, {})
 
+vim.api.nvim_create_user_command("FzfJumps", function()
+  fzf.jumps()
+end, {})
+
+vim.api.nvim_create_user_command("FzfMessages", function()
+  fzf.messages()
+end, {})
+
+vim.api.nvim_create_user_command("FzfUndo", function()
+  fzf.undo()
+end, {})
+
+vim.api.nvim_create_user_command("FzfCommandHistory", function()
+  fzf.commands_history()
+end, {})
+
+vim.api.nvim_create_user_command("FzfOptions", function()
+  fzf.options()
+end, {})
+
+vim.api.nvim_create_user_command("FzfWindows", function()
+  fzf.windows()
+end, {})
+
 -- git
 vim.api.nvim_create_user_command("FzfGitFiles", function()
   fzf.git_files()
@@ -169,4 +193,12 @@ end, {})
 
 vim.api.nvim_create_user_command("FzfLspType", function()
   fzf.lsp_type_definitions()
+end, {})
+
+vim.api.nvim_create_user_command("FzfLspCodeActions", function()
+  fzf.lsp_code_actions()
+end, {})
+
+vim.api.nvim_create_user_command("FzfLspWorkspaceSymbols", function()
+  fzf.lsp_workspace_symbols()
 end, {})

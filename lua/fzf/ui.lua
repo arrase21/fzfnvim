@@ -56,7 +56,7 @@ function M.create_backdrop()
 
   vim.api.nvim_win_set_option(win, "winhighlight", "Normal:MyFzfBackdrop")
 
-  vim.api.nvim_win_set_option(win, "winblend", 70)
+  vim.api.nvim_win_set_option(win, "winblend", config.options.ui.backdrop_blend or 70)
 
   return win
 end
@@ -100,6 +100,10 @@ function M.fzf_ui(cmd, on_select, win_opts)
     title = title,
     title_pos = title_pos,
   })
+  local winblend = config.options.ui.winblend or 0
+  if winblend > 0 then
+    vim.api.nvim_win_set_option(win, "winblend", winblend)
+  end
 
   local temp = vim.fn.tempname()
 

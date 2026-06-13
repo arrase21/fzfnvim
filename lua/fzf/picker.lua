@@ -4,6 +4,20 @@ local helpers = require("fzf.helpers")
 
 local M = {}
 
+local function resolve_preview_window(win_opts, opts)
+  if opts.preview_window then
+    return opts.preview_window
+  end
+  local p = config.options.ui.preview
+  if p and p.position and p.size then
+    return string.format("%s:%d%%:%s", p.position, p.size, p.border or "border-left")
+  end
+  if win_opts and win_opts.preview_window then
+    return win_opts.preview_window
+  end
+  return "right:60%"
+end
+
 M._last_state = nil
 
 function M.resume()
@@ -74,7 +88,7 @@ local function build_fzf_flags(win_opts, opts)
     table.insert(flags, string.format("--preview '%s'", helpers.escape_shell(preview_cmd)))
     table.insert(flags, string.format(
       "--preview-window=%s",
-      opts.preview_window or (win_opts and win_opts.preview_window) or "right:60%"
+      resolve_preview_window(win_opts, opts)
     ))
   end
 
@@ -136,6 +150,8 @@ local function build_fzf_flags(win_opts, opts)
   end
 
   table.insert(flags, "--cycle")
+
+  table.insert(flags, "--bind 'ctrl-a:toggle-all'")
 
   return " " .. table.concat(flags, " ")
 end
@@ -215,6 +231,10 @@ function M.pick(opts)
     title = title,
     title_pos = title_pos,
   })
+  local winblend = config.options.ui.winblend or 0
+  if winblend > 0 then
+    vim.api.nvim_win_set_option(win, "winblend", winblend)
+  end
 
   vim.fn.termopen({ "sh", "-c", full_cmd }, {
     on_exit = function(_, code)

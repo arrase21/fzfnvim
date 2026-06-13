@@ -11,7 +11,7 @@ M.layout_presets = {
       row = math.floor((vim.o.lines - h) / 3),
       col = math.floor((vim.o.columns - w) / 2),
       border = nil,
-      preview_window = c.preview_window or "right:55%:border-rounded",
+      preview_window = c.preview_window or "right:55%:border-left",
     }
   end,
   fullscreen = function(opts)
@@ -23,7 +23,7 @@ M.layout_presets = {
       height = h,
       row = 0,
       col = 0,
-      preview_window = "right:50%",
+      preview_window = "right:55%:border-left",
     })
   end,
   horizontal = function(opts)
@@ -47,7 +47,7 @@ M.layout_presets = {
       row = math.floor((vim.o.lines - h) / 2),
       col = math.floor((vim.o.columns - w) / 2),
       border = nil,
-      preview_window = v.preview_window or "bottom:50%:border-top",
+      preview_window = v.preview_window or "top:40%:border-bottom",
     }
   end,
 }
@@ -111,6 +111,34 @@ local defaults = {
     fzf_opts = {},
   },
 
+  messages = {
+    fzf_opts = {},
+  },
+
+  code_actions = {
+    fzf_opts = {},
+  },
+
+  workspace_symbols = {
+    fzf_opts = {},
+  },
+
+  undo = {
+    fzf_opts = {},
+  },
+
+  commands_history = {
+    fzf_opts = {},
+  },
+
+  options = {
+    fzf_opts = {},
+  },
+
+  windows = {
+    fzf_opts = {},
+  },
+
   changes = {
     fzf_opts = {},
   },
@@ -145,28 +173,37 @@ local defaults = {
     height = 0.80,
     backdrop = true,
     backdrop_bg = "#000000",
+    backdrop_blend = 70,
+    winblend = 0,
     border = "rounded",
     title = " FZF ",
     title_pos = "center",
+    preview = {
+      position = "right",
+      size = 55,
+      border = "border-left",
+    },
     center = {
       width = 0.80,
       height = 0.80,
-      preview_window = "right:55%:border-rounded",
+      preview_window = "right:55%:border-left",
     },
     fullscreen = {
       width = 1.0,
       height = 1.0,
       border = "none",
+      preview_window = "right:55%:border-left",
     },
     horizontal = {
       width = 1.0,
       height = 0.35,
       border = "rounded",
+      preview_window = "right:55%:border-left",
     },
     vertical = {
       width = 0.90,
       height = 0.80,
-      preview_window = "bottom:50%:border-top",
+      preview_window = "top:40%:border-bottom",
     },
   },
 
@@ -187,6 +224,7 @@ local defaults = {
       "--marker='✓'",
       "--separator='─'",
       "--scrollbar='│'",
+      "--color='bg:-1,bg+:-1,gutter:-1,hl:4,hl+:4'",
     },
   },
 

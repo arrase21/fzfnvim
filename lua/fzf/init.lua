@@ -33,6 +33,12 @@ M.colorschemes = M.search.colorschemes
 M.quickfix = M.search.quickfix
 M.loclist = M.search.loclist
 M.search_history = M.search.search_history
+M.jumps = M.search.jumps
+M.messages = M.search.messages
+M.undo = M.search.undo
+M.commands_history = M.search.commands_history
+M.options = M.search.options
+M.windows = M.search.windows
 
 -- git
 M.git_files = M.git.files
@@ -50,6 +56,8 @@ M.lsp_references = M.lsp.references
 M.lsp_definitions = M.lsp.definitions
 M.lsp_implementations = M.lsp.implementations
 M.lsp_type_definitions = M.lsp.type_definition
+M.lsp_code_actions = M.lsp.code_actions
+M.lsp_workspace_symbols = M.lsp.workspace_symbols
 
 -- harpoon
 M.harpoon_add = M.harpoon.add

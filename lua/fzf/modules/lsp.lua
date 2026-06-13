@@ -100,6 +100,7 @@ local function process_and_show(diagnostics)
     source = lines,
     preview = preview_cmd() .. " --line-range {4}: --highlight-line {4} {6}",
     title = " Diagnostics ",
+    prompt = "  ",
     delimiter = "\t",
     with_nth = "1,2,3",
     on_select = function(selection)
@@ -189,6 +190,7 @@ local function location_picker(method, title)
       source = lines,
       preview = preview_cmd() .. " --highlight-line {2} {1}",
       title = title or " Locations ",
+      prompt = "  ",
       delimiter = ":",
       on_select = function(selection)
         local file, lnum, col = selection:match("^(.-):(%d+):(%d+)")
@@ -215,6 +217,107 @@ end
 
 L.type_definition = function()
   location_picker("textDocument/typeDefinition", " Type Definition ")
+end
+
+L.code_actions = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local params = vim.lsp.util.make_range_params(0, "utf-8")
+  local cur_line = vim.fn.line(".") - 1
+  local line_diags = {}
+  for _, d in ipairs(vim.diagnostic.get(bufnr)) do
+    if d.lnum == cur_line then
+      table.insert(line_diags, d)
+    end
+  end
+  params.context = {
+    diagnostics = line_diags,
+  }
+
+  vim.lsp.buf_request(0, "textDocument/codeAction", params, function(err, result)
+    if err or not result or #result == 0 then
+      return helpers.notify("No code actions available")
+    end
+
+    local lines = {}
+    local actions = {}
+    for _, action in ipairs(result) do
+      if action.title then
+        table.insert(lines, action.title)
+        table.insert(actions, action)
+      end
+    end
+
+    if #lines == 0 then
+      return helpers.notify("No code actions available")
+    end
+
+    picker.pick({
+      source = lines,
+    title = " Code Actions ",
+    prompt = "  ",
+    on_select = function(selection)
+        if not selection then return end
+        for _, action in ipairs(actions) do
+          if action.title == selection then
+            if action.edit then
+              vim.lsp.util.apply_workspace_edit(action.edit)
+            end
+            if action.command then
+              vim.lsp.buf.execute_command(action.command)
+            end
+            break
+          end
+        end
+      end,
+    })
+  end)
+end
+
+L.workspace_symbols = function()
+  vim.lsp.buf_request(0, "workspace/symbol", { query = "" }, function(err, result)
+    if err or not result or vim.tbl_isempty(result) then
+      return helpers.notify("No workspace symbols")
+    end
+
+    local lines = {}
+    for _, s in ipairs(result) do
+      local name = s.name
+      local kind = vim.lsp.protocol.SymbolKind[s.kind] or "Unknown"
+      local container = s.containerName or ""
+      local uri = s.location and s.location.uri
+      local range = s.location and s.location.range
+      if uri and range then
+        local path = vim.uri_to_fname(uri)
+        local short = vim.fn.fnamemodify(path, ":~:.")
+        table.insert(
+          lines,
+          string.format("%s\t%s\t%s\t%s\t%d", kind, name, container, short, range.start.line + 1)
+        )
+      end
+    end
+
+    if #lines == 0 then
+      return helpers.notify("No workspace symbols")
+    end
+
+    picker.pick({
+      source = lines,
+      preview = require("fzf.ui").get_preview_cmd()
+        .. " --line-range :500 --highlight-line {5} {4}",
+    title = " Workspace Symbols ",
+    prompt = "☰ ",
+    delimiter = "\t",
+      with_nth = "1,2,3",
+      on_select = function(selection)
+        if not selection then return end
+        local parts = vim.split(selection, "\t")
+        local file, lnum = parts[4], tonumber(parts[5])
+        if file and lnum then
+          helpers.jump(file, lnum, 1)
+        end
+      end,
+    })
+  end)
 end
 
 L.symbols = function()
@@ -258,8 +361,9 @@ L.symbols = function()
     picker.pick({
       source = lines,
       preview = preview_cmd() .. " --highlight-line {3} " .. current_file,
-      title = " Symbols ",
-      delimiter = "\t",
+    title = " Symbols ",
+    prompt = "  ",
+    delimiter = "\t",
       with_nth = "1,2",
       on_select = function(selection)
         local lnum = selection:match("\t(%d+)$")
