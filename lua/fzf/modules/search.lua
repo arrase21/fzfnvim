@@ -118,6 +118,10 @@ S.live_grep = function()
   })
 end
 
+local function buffer_preview()
+  return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {3}"
+end
+
 S.buffers = function()
   local buffers = vim.fn.getbufinfo({ buflisted = 1 })
   table.sort(buffers, function(a, b)
@@ -140,7 +144,7 @@ S.buffers = function()
 
   picker.pick({
     source = lines,
-    preview = preview,
+    preview = buffer_preview,
     title = " Buffers ",
     delimiter = "\t",
     with_nth = "2..3",
