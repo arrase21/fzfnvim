@@ -1,37 +1,3 @@
-local icons = {
-  py = "", js = "", ts = "", jsx = "", tsx = "",
-  rs = "", go = "", java = "", rb = "",
-  c = "", cpp = "", h = "", hpp = "", hs = "",
-  md = "", json = "", yaml = "", yml = "", toml = "",
-  css = "", html = "", svelte = "", vue = "", astro = "",
-  sh = "", bash = "", zsh = "",
-  vim = "", lua = "",
-  ["makefile"] = "", dockerfile = "",
-  sql = "", graphql = "", xml = "謹",
-  pdf = "", txt = "",
-  jpg = "", jpeg = "", png = "", gif = "", svg = "",
-  mp3 = "", mp4 = "",
-  zip = "", tar = "", gz = "", rar = "", ["7z"] = "",
-  lock = "", cfg = "", conf = "", ini = "", env = "",
-}
-
-local colors = {
-  py = {255, 212, 59}, js = {247, 223, 30}, ts = {49, 120, 198},
-  jsx = {97, 218, 251}, tsx = {97, 218, 251},
-  rs = {239, 81, 9}, go = {0, 173, 216}, java = {227, 116, 52}, rb = {204, 52, 53},
-  c = {85, 85, 255}, cpp = {0, 85, 170}, h = {85, 85, 255}, hpp = {0, 85, 170}, hs = {147, 61, 195},
-  lua = {86, 156, 214},
-  md = {66, 133, 244}, json = {190, 170, 80}, yaml = {225, 75, 65}, yml = {225, 75, 65}, toml = {156, 180, 60},
-  css = {21, 114, 182}, html = {227, 76, 38}, svelte = {255, 62, 0}, vue = {65, 184, 131}, astro = {255, 90, 0},
-  sh = {60, 179, 60}, bash = {60, 179, 60}, zsh = {60, 179, 60},
-  vim = {0, 170, 0},
-  ["makefile"] = {156, 180, 60}, dockerfile = {0, 105, 180},
-  sql = {230, 100, 50}, txt = {170, 170, 170}, pdf = {230, 50, 50},
-  jpg = {100, 180, 100}, jpeg = {100, 180, 100}, png = {100, 180, 100}, gif = {100, 180, 100}, svg = {255, 180, 50},
-  zip = {180, 140, 100}, tar = {180, 140, 100}, gz = {180, 140, 100}, rar = {180, 140, 100}, ["7z"] = {180, 140, 100},
-  lock = {200, 50, 50}, cfg = {156, 180, 60}, conf = {156, 180, 60}, ini = {156, 180, 60}, env = {255, 180, 50},
-}
-
 local M = {}
 
 M.reset = "\27[0m"
@@ -74,48 +40,230 @@ function M.ansi_color(r, g, b)
   return string.format("\27[38;2;%d;%d;%dm", r, g, b)
 end
 
-local function get_ext(filename)
-  return filename:match("%.([^./]+)$")
-end
+local icons_mod
 
-local function get_basename(filename)
-  return filename:match("([^/]+)$")
-end
-
-local function lookup(key)
-  key = key and key:lower()
-  local icon = key and icons[key]
-  local color = key and colors[key]
-  return icon, color
+local function get_icons()
+  if icons_mod then return icons_mod end
+  local mini = rawget(_G, "MiniIcons")
+  if mini then
+    icons_mod = mini
+    return icons_mod
+  end
+  local ok, mod = pcall(require, "mini.icons")
+  if not ok then return nil end
+  if not pcall(mod.get, "file", "test") and not pcall(mod.setup) then
+    return nil
+  end
+  icons_mod = mod
+  return icons_mod
 end
 
 function M.file_icon(filename)
-  local ext = get_ext(filename)
-  local icon, color = lookup(ext)
-  if icon then return icon, color end
-  local base = get_basename(filename)
-  icon, color = lookup(base)
-  return icon or "", color
+  local icons = get_icons()
+  if not icons or not filename or filename == "" then return "", nil end
+  local base = filename:match("([^/]+)$") or filename
+  local ok, icon, hl = pcall(icons.get, "file", base)
+  if not ok or type(icon) ~= "string" or icon == "" then
+    ok, icon, hl = pcall(icons.get, "file", filename)
+    if not ok or type(icon) ~= "string" or icon == "" then return "", nil end
+  end
+  return icon, hl
+end
+
+function M.icon_text(filename)
+  local icon, hl = M.file_icon(filename)
+  if icon == "" then return "" end
+  return M.get_ansi(hl) .. icon .. reset
+end
+
+function M.dir_icon(name)
+  local icons = get_icons()
+  if not icons or not name or name == "" then return "", nil end
+  local base = name:match("([^/]+)/?$") or name
+  local ok, icon, hl = pcall(icons.get, "directory", base)
+  if not ok or type(icon) ~= "string" or icon == "" then return "", nil end
+  return icon, hl
+end
+
+function M.dir_icon_text(name)
+  local icon, hl = M.dir_icon(name)
+  if icon == "" then return "" end
+  return M.get_ansi(hl) .. icon .. reset
+end
+
+local function git_toplevel(path)
+  local ok, res = pcall(function()
+    return vim.system({ "git", "-C", path, "rev-parse", "--show-toplevel" }):wait()
+  end)
+  if not ok or res.code ~= 0 then return nil end
+  local top = (res.stdout or ""):gsub("%s+$", "")
+  if top == "" then return nil end
+  return vim.uv.fs_realpath(top) or top
+end
+
+function M.git_status(path)
+  local top = git_toplevel(path or vim.fn.getcwd())
+  local st = { top = top, files = {}, list = {} }
+  if not top then return st end
+
+  local ok, res = pcall(function()
+    return vim.system({ "git", "-C", top, "status", "--porcelain", "-z" }):wait()
+  end)
+  if not ok or res.code ~= 0 then return st end
+
+  local entries = vim.split(res.stdout or "", "\0")
+  local i = 1
+  while i <= #entries do
+    local entry = entries[i]
+    if #entry >= 3 then
+      local xy = entry:sub(1, 2)
+      local rel = entry:sub(4)
+      if rel ~= "" then
+        local abs = top .. "/" .. rel
+        st.files[abs] = xy
+        st.list[#st.list + 1] = { abs = abs, rel = rel, xy = xy }
+        if xy:sub(1, 1):match("[RC]") then i = i + 1 end
+      end
+    end
+    i = i + 1
+  end
+  return st
+end
+
+function M.git_status_of(st, path)
+  if not st or not st.top or not path or path == "" then return nil end
+  local xy = st.files[path]
+  if xy then return xy end
+  local real = vim.uv.fs_realpath(path)
+  return real and st.files[real] or nil
+end
+
+local git_icons = {
+  added = vim.fn.nr2char(0xF0FE),
+  modified = vim.fn.nr2char(0xF14B),
+  renamed = vim.fn.nr2char(0x2794),
+  deleted = vim.fn.nr2char(0xF146),
+  unstaged = vim.fn.nr2char(0xF467),
+  copied = vim.fn.nr2char(0xF0C5),
+  conflict = vim.fn.nr2char(0x26A0),
+  untracked = vim.fn.nr2char(0xF128),
+  hidden = vim.fn.nr2char(0xF165D),
+}
+
+local mark_colors = {
+  unstaged = { "DiagnosticError", { 255, 85, 85 } },
+  staged = { "DiagnosticOk", { 60, 179, 60 } },
+  untracked = { "DiagnosticWarn", { 255, 200, 50 } },
+  hidden = { nil, { 128, 128, 128 } },
+}
+
+local function git_category(xy)
+  if xy == "??" then return "untracked" end
+  if xy == "!!" then return "hidden" end
+  local x, y = xy:sub(1, 1), xy:sub(2, 2)
+  if x == "U" or y == "U" or (x == "A" and y == "A") or (x == "D" and y == "D") then
+    return "conflict"
+  end
+  if y ~= " " then return "unstaged" end
+  if x == "A" then return "added" end
+  if x == "M" then return "modified" end
+  if x == "D" then return "deleted" end
+  if x == "R" then return "renamed" end
+  if x == "C" then return "copied" end
+  return nil
+end
+
+local function git_mark_category(category)
+  if not category then return " " end
+  local color
+  if category == "untracked" then
+    color = mark_colors.untracked
+  elseif category == "unstaged" or category == "deleted" or category == "conflict" then
+    color = mark_colors.unstaged
+  elseif category == "hidden" then
+    color = mark_colors.hidden
+  else
+    color = mark_colors.staged
+  end
+  return M.get_ansi(color[1], color[2]) .. git_icons[category] .. reset
+end
+
+function M.git_mark(xy)
+  if not xy or xy == "" then return " " end
+  return git_mark_category(git_category(xy))
+end
+
+local git_mark_priority = {
+  conflict = 1,
+  deleted = 2,
+  unstaged = 3,
+  modified = 4,
+  added = 5,
+  renamed = 6,
+  copied = 7,
+  untracked = 8,
+  hidden = 9,
+}
+
+function M.git_mark_of(st, dirpath)
+  if not st or not st.top or not dirpath or dirpath == "" then return " " end
+  local prefix = dirpath .. "/"
+  local best, best_rank
+  for _, item in ipairs(st.list) do
+    local abs = item.abs
+    if abs == prefix or abs:sub(1, #prefix) == prefix then
+      local category = git_category(item.xy)
+      local rank = category and git_mark_priority[category]
+      if rank and (not best_rank or rank < best_rank) then
+        best, best_rank = category, rank
+      end
+    end
+  end
+  return git_mark_category(best)
+end
+
+function M.file_badge(path, shown, xy)
+  local icon = M.icon_text(path)
+  local label = shown or path
+  local mark = M.git_mark(xy)
+  local has_mark = mark ~= "" and mark ~= " "
+  if icon == "" then
+    if has_mark then return label .. " " .. mark end
+    return label
+  end
+  if has_mark then
+    return icon .. " " .. label .. " " .. mark
+  end
+  return icon .. " " .. label
+end
+
+function M.badge_line(st, path, shown)
+  local label = shown or path
+  return M.file_badge(path, label, M.git_status_of(st, path)) .. "\t" .. label
 end
 
 function M.add_file_icons(files)
   local result = {}
   for _, f in ipairs(files) do
-    local icon, color = M.file_icon(f)
-    if color then
-      result[#result + 1] = M.ansi_color(color[1], color[2], color[3]) .. icon .. reset .. "\t" .. f
-    else
+    local icon = M.icon_text(f)
+    if icon ~= "" then
       result[#result + 1] = icon .. "\t" .. f
+    else
+      result[#result + 1] = f
     end
   end
   return result
 end
 
 function M.strip_icon(line)
-  return line:gsub("^%S+%s+", "", 1)
+  return (line:gsub("^[^\t]*\t", "", 1))
 end
 
 function M.get_ansi(hl_name, fallback)
+  if not hl_name then
+    if fallback then return M.ansi_color(fallback[1], fallback[2], fallback[3]) end
+    return ""
+  end
   local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = true })
   local ansi
   if hl and hl.fg then
@@ -133,18 +281,12 @@ function M.get_ansi(hl_name, fallback)
   return ansi
 end
 
-local kind_icons = {
-  File = "", Module = "", Namespace = "", Package = "", Class = "",
-  Method = "", Property = "", Field = "", Constructor = "", Enum = "",
-  Interface = "", Function = "", Variable = "", Constant = "", String = "",
-  Number = "", Boolean = "", Array = "", Object = "", Key = "",
-  Null = "", EnumMember = "", Struct = "", Event = "", Operator = "",
-  TypeParameter = "", Keyword = "", Snippet = "", Folder = "", Unit = "",
-  Value = "", Reference = "", Text = "",
-}
-
 function M.kind_icon(kind)
-  return kind_icons[kind] or ""
+  local icons = get_icons()
+  if not icons or not kind then return "" end
+  local ok, icon = pcall(icons.get, "lsp", kind)
+  if ok and type(icon) == "string" then return icon end
+  return ""
 end
 
 local severity_hl = {
@@ -169,6 +311,14 @@ end
 
 function M.escape_shell(str)
   return str:gsub("'", "'\\''")
+end
+
+function M.clipboard_pipe()
+  if vim.fn.executable("wl-copy") == 1 then return "wl-copy" end
+  if vim.fn.executable("xclip") == 1 then return "xclip -selection clipboard" end
+  if vim.fn.executable("xsel") == 1 then return "xsel --clipboard --input" end
+  if vim.fn.executable("pbcopy") == 1 then return "pbcopy" end
+  return nil
 end
 
 return M

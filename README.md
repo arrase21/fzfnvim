@@ -6,6 +6,7 @@ Unified fzf-based picker UI for Neovim — heavily inspired by fzf-lua. File sea
 
 - Neovim >= 0.9
 - [fzf](https://github.com/junegunn/fzf)
+- [mini.nvim](https://github.com/echasnovski/mini.nvim) (optional — file icons via `mini.icons`; setup automatically if you don't)
 - [ripgrep](https://github.com/BurntSushi/ripgrep) (optional, for file/grep search)
 - [bat](https://github.com/sharkdp/bat) (optional, for syntax-highlighted previews)
 
@@ -71,6 +72,14 @@ use {
 | `:FzfGitStash` | Git stash apply picker |
 | `:FzfGitDiff` | Git diff file picker |
 
+### Explorer
+
+| Command | Description |
+|---|---|
+| `:FzfTree [dir]` | Directory browser (defaults to the current working directory) |
+
+Inside the browser: `Enter` opens a file / descends into a directory, `Ctrl-o` goes up one level, `Ctrl-d` creates an entry, `Ctrl-r` renames, `Ctrl-x` deletes, `Ctrl-y` copies the path to the clipboard without leaving the browser (you stay in the directory to keep navigating or paste it elsewhere). Creation infers the type from the name: end it with `/` to create a directory, otherwise a file; intermediate directories are created as needed (e.g. `foo/bar.go`). Creating a directory opens it so you can create files inside. Creation and rename use a floating input (`Enter` confirms, `Esc` cancels) and deletion asks for confirmation in a floating prompt. Directories show `mini.icons` folder icons plus a git mark when they contain changes, and files show git status markers; the preview pane lists directories with `eza` (falling back to the configured preview command for files).
+
 ### Harpoon
 
 | Command | Description |
@@ -104,6 +113,9 @@ use {
 - **Preview scrolling** - Use `Ctrl-d` and `Ctrl-u` to scroll preview up/down.
 - **Resume** - `:FzfResume` reopens the last picker with the same source.
 - **Live grep** - `:FzfLiveGrep` refreshes results on each keystroke using ripgrep.
+- **mini.icons file icons** - File pickers render icons from `mini.icons` (same source as your colorscheme/UI).
+- **Git status markers** - File pickers (files, buffers, oldfiles, git files, git status/diff, harpoon) show a per-file icon from `git status` on the right of the name: added, modified, renamed, deleted, unstaged, copied, conflict, untracked, hidden (colored green when staged, red when unstaged, yellow when untracked).
+- **Directory tree browser** - `:FzfTree` navigates directories one level at a time with mini.icons, git status markers, `eza` directory previews, and rename/delete/create actions.
 - **20+ built-in pickers** - Navigate help, keymaps, commands, marks, registers, jumps, changes, quickfix, loclist, and more.
 
 ## Configuration

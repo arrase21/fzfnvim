@@ -61,6 +61,105 @@ function M.create_backdrop()
   return win
 end
 
+local function float_box(buf, win_opts)
+  return vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = win_opts.width,
+    height = win_opts.height,
+    row = math.floor((vim.o.lines - win_opts.height) / 2),
+    col = math.floor((vim.o.columns - win_opts.width) / 2),
+    style = "minimal",
+    border = "rounded",
+    zindex = 100,
+    title = win_opts.title,
+    title_pos = "center",
+  })
+end
+
+local function destroy(win, backdrop, buf)
+  if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+  if backdrop and vim.api.nvim_win_is_valid(backdrop) then vim.api.nvim_win_close(backdrop, true) end
+  if buf and vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_delete(buf, { force = true }) end
+end
+
+function M.input(opts, on_submit)
+  opts = opts or {}
+  local title = opts.title or " Input "
+  local default = opts.default or ""
+  local message = opts.message or ""
+
+  local width = math.max(24, math.min(math.floor(vim.o.columns * 0.5), 80))
+  local height = message ~= "" and 2 or 1
+  local buf = vim.api.nvim_create_buf(false, true)
+  local backdrop = config.options.ui.backdrop and M.create_backdrop() or nil
+  local win = float_box(buf, { width = width, height = height, title = " " .. title .. " " })
+  local done = false
+
+  local function close(cancel)
+    if done then return end
+    done = true
+    local text = ""
+    if not cancel and vim.api.nvim_buf_is_valid(buf) then
+      text = vim.api.nvim_buf_get_lines(buf, height - 1, height, false)[1] or ""
+    end
+    destroy(win, backdrop, buf)
+    vim.schedule(function()
+      if text ~= "" and on_submit then
+        on_submit(text)
+      elseif opts.on_cancel then
+        opts.on_cancel()
+      end
+    end)
+  end
+
+  local lines = message ~= "" and { message, default } or { default }
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_win_set_cursor(win, { height, #default })
+  vim.keymap.set({ "i", "n" }, "<CR>", function() vim.schedule(function() close(false) end) end,
+    { buffer = buf, nowait = true })
+  vim.keymap.set({ "i", "n" }, "<Esc>", function() vim.schedule(function() close(true) end) end,
+    { buffer = buf, nowait = true })
+  vim.keymap.set({ "i", "n" }, "<C-c>", function() vim.schedule(function() close(true) end) end,
+    { buffer = buf, nowait = true })
+  vim.schedule(function()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_set_current_win(win)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("i", true, false, true), "n", false)
+    end
+  end)
+end
+
+function M.confirm(msg, on_yes, on_cancel)
+  msg = msg or "Are you sure?"
+  local width = math.max(24, math.min(vim.fn.strdisplaywidth(msg) + 4, vim.o.columns - 4))
+  local buf = vim.api.nvim_create_buf(false, true)
+  local backdrop = config.options.ui.backdrop and M.create_backdrop() or nil
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { msg, "", "  [y] yes      [n] no  " })
+  local win = float_box(buf, { width = width, height = 3, title = " Confirm " })
+  vim.bo[buf].modifiable = false
+  local done = false
+
+  local function close(confirmed)
+    if done then return end
+    done = true
+    destroy(win, backdrop, buf)
+    vim.schedule(function()
+      if confirmed then
+        on_yes()
+      elseif on_cancel then
+        on_cancel()
+      end
+    end)
+  end
+
+  for _, key in ipairs({ "y", "Y", "<CR>" }) do
+    vim.keymap.set("n", key, function() close(true) end, { buffer = buf, nowait = true })
+  end
+  for _, key in ipairs({ "n", "N", "q", "<Esc>", "<C-c>" }) do
+    vim.keymap.set("n", key, function() close(false) end, { buffer = buf, nowait = true })
+  end
+end
+
 function M.fzf_ui(cmd, on_select, win_opts)
   local backdrop
 

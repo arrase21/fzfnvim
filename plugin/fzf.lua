@@ -157,6 +157,11 @@ vim.api.nvim_create_user_command("FzfHarpoonAdd", function()
   fzf.harpoon_add()
 end, {})
 
+-- tree
+vim.api.nvim_create_user_command("FzfTree", function(args)
+  fzf.tree_open(args.args ~= "" and args.args or nil)
+end, { nargs = "?" })
+
 -- session
 vim.api.nvim_create_user_command("FzfSessionLoad", function()
   fzf.session_load()

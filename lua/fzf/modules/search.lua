@@ -4,8 +4,6 @@ local helpers = require("fzf.helpers")
 
 local S = {}
 
-local reset = helpers.reset
-
 local function preview()
   return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}"
 end
@@ -50,12 +48,57 @@ local function grep_common(rg_extra, title)
 end
 
 S.files = function()
+  local root = vim.fn.getcwd()
+
+  local function collect()
+    local ok, res = pcall(function()
+      return vim
+        .system({ "rg", "--files", "--hidden", "--no-ignore-vcs", "-g", "!.git" })
+        :wait()
+    end)
+    if not ok or (res.code ~= 0 and res.code ~= 1) then
+      local err = ok and (res.stderr or ""):gsub("%s+$", "") or "rg failed"
+      if err ~= "" then helpers.notify(err, vim.log.levels.WARN) end
+      return {}
+    end
+
+    local tmp = vim.fn.tempname()
+    local fh = io.open(tmp, "w")
+    if not fh then return {} end
+    local st = helpers.git_status(root)
+    local has_git = st.top ~= nil
+    local files_st = st.files
+    local reset = helpers.reset
+    local get_ansi = helpers.get_ansi
+    local git_mark = helpers.git_mark
+    local Micons = require("mini.icons")
+    for rel in (res.stdout or ""):gmatch("([^\n]*)\n") do
+      if rel ~= "" then
+        local p = root .. "/" .. rel
+        local xy = has_git and files_st[p] or nil
+        local base = rel:match("([^/]+)$") or rel
+        local icon, hl = Micons.get("file", base)
+        if icon == "" then icon, hl = "", nil end
+        local mark = git_mark(xy)
+        local display = (icon ~= "" and (get_ansi(hl) .. icon .. reset .. " ") or "") .. rel
+        if mark ~= " " and mark ~= "" then
+          display = display .. " " .. mark
+        end
+        fh:write(display, "\t", rel, "\n")
+      end
+    end
+    fh:close()
+    return tmp
+  end
+
   picker.pick({
-    source = "rg --files --hidden --no-ignore-vcs -g '!.git'",
+    source = collect,
     preview = function()
-      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}"
+      return require("fzf.ui").get_preview_cmd() .. " --line-range :500 {2}"
     end,
     title = " Files ",
+    delimiter = "\t",
+    with_nth = "1",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
@@ -63,7 +106,9 @@ S.files = function()
     fzf_opts = helpers.build_fzf_opts(config.files.fzf_opts),
     on_select = function(selection, ctx)
       if not selection then return end
-      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, selection)))
+      local rel = selection:match("\t(.+)$")
+      if not rel then return end
+      vim.cmd("edit " .. vim.fn.fnameescape(helpers.join_path(ctx.root, rel)))
     end,
   })
 end
@@ -128,13 +173,14 @@ S.buffers = function()
     return a.lastused > b.lastused
   end)
 
+  local st = helpers.git_status()
   local lines = {}
   for _, buf in ipairs(buffers) do
     if buf.name ~= "" then
       local bn = buf.bufnr
-      local icon, _ = helpers.file_icon(buf.name)
       local short = vim.fn.fnamemodify(buf.name, ":~:.")
-      table.insert(lines, string.format("%s\t%s\t%s", bn, icon or "", short))
+      local display = helpers.file_badge(buf.name, short, helpers.git_status_of(st, buf.name))
+      table.insert(lines, string.format("%s\t%s\t%s", display, bn, short))
     end
   end
 
@@ -149,16 +195,16 @@ S.buffers = function()
     prompt = "  ",
     header = " [ctrl-x] close [ctrl-d/u] preview ",
     delimiter = "\t",
-    with_nth = "2..3",
+    with_nth = "1",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
-      ["ctrl-x"] = "execute(echo {1})+abort",
+      ["ctrl-x"] = "execute(echo {2})+abort",
     },
     on_select = function(selection)
       if not selection then return end
       local parts = vim.split(selection, "\t")
-      local bufnr = tonumber(parts[1])
+      local bufnr = tonumber(parts[2])
       if bufnr then
         vim.api.nvim_set_current_buf(bufnr)
       end
@@ -225,16 +271,13 @@ S.oldfiles = function()
     return helpers.notify("No old files")
   end
 
+  local st = helpers.git_status()
   local lines = {}
   for _, file in ipairs(files) do
     if vim.fn.filereadable(file) == 1 then
-      local icon, color = helpers.file_icon(file)
       local name = file:match("([^/]+)$") or file
-      if color then
-        table.insert(lines, helpers.ansi_color(color[1], color[2], color[3]) .. icon .. reset .. "\t" .. name .. "\t" .. file)
-      else
-        table.insert(lines, icon .. "\t" .. name .. "\t" .. file)
-      end
+      local display = helpers.file_badge(file, name, helpers.git_status_of(st, file))
+      lines[#lines + 1] = display .. "\t" .. name .. "\t" .. file
     end
   end
 
@@ -246,7 +289,7 @@ S.oldfiles = function()
     title = " Old Files ",
     prompt = "  ",
     delimiter = "\t",
-    with_nth = "1..2",
+    with_nth = "1",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",

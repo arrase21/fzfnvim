@@ -28,6 +28,13 @@ function M.check()
   else
     health.warn("git missing — git features won't work")
   end
+
+  local ok = pcall(require, "mini.icons")
+  if ok then
+    health.ok("mini.icons available (file icons)")
+  else
+    health.warn("mini.icons missing — pickers will list files without icons")
+  end
 end
 
 return M

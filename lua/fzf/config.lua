@@ -46,7 +46,7 @@ M.layout_presets = {
       height = h,
       row = math.floor((vim.o.lines - h) / 2),
       col = math.floor((vim.o.columns - w) / 2),
-      border = nil,
+      border = v.border,
       preview_window = v.preview_window or "top:40%:border-bottom",
     }
   end,
@@ -232,9 +232,11 @@ local defaults = {
   ui_select = true,
 }
 
+M.user = {}
 M.options = vim.deepcopy(defaults)
 
 function M.setup(opts)
+  M.user = vim.deepcopy(opts or {})
   M.options = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
 end
 

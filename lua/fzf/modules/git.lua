@@ -18,33 +18,73 @@ local function git_checkout(target, msg, root)
 end
 
 G.files = function()
+  local root = vim.fn.getcwd()
+
+  local function collect()
+    local ok, res = pcall(function()
+      return vim
+        .system({ "git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard" })
+        :wait()
+    end)
+    if not ok or res.code ~= 0 then
+      local err = ok and (res.stderr or ""):gsub("%s+$", "") or "git ls-files failed"
+      if err ~= "" then helpers.notify(err, vim.log.levels.WARN) end
+      return {}
+    end
+
+    local st = helpers.git_status(root)
+    local lines = {}
+    for _, rel in ipairs(vim.split(res.stdout or "", "\0")) do
+      if rel ~= "" then
+        lines[#lines + 1] = helpers.badge_line(st, root .. "/" .. rel, rel)
+      end
+    end
+    return lines
+  end
+
   picker.pick({
-    source = "git ls-files --cached --others --exclude-standard",
-    preview = require("fzf.ui").get_preview_cmd() .. " {}",
+    source = collect,
+    preview = require("fzf.ui").get_preview_cmd() .. " {2}",
     title = " Git Files ",
-    prompt = "  ",
+    prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1",
     on_select = function(selection)
       if selection and selection ~= "" then
-        helpers.jump(selection, 1, 1)
+        local rel = selection:match("\t(.+)$")
+        if rel then helpers.jump(rel, 1, 1) end
       end
     end,
   })
 end
 
 G.status = function()
+  local st = helpers.git_status()
+  if not st.top then
+    return helpers.notify("Not a git repository", vim.log.levels.WARN)
+  end
+  if #st.list == 0 then
+    return helpers.notify("No changes found", vim.log.levels.INFO)
+  end
+
+  local lines = {}
+  for _, e in ipairs(st.list) do
+    local short = vim.fn.fnamemodify(e.abs, ":~:.")
+    local display = helpers.file_badge(e.abs, short, e.xy)
+    lines[#lines + 1] = display .. "\t" .. short .. "\t" .. e.abs
+  end
+
   picker.pick({
-    source = "git status --short",
-    preview = require("fzf.ui").get_preview_cmd()
-      .. [[ --line-range :500 "$(x={}; echo "${x##* }")"]],
+    source = lines,
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {3}",
     title = " Git Status ",
     prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1",
     on_select = function(selection)
-      local file = selection:match("^..%s+(.+)$")
-
-      if file then
-        file = file:gsub("%s+->%s+.*$", "")
-        helpers.jump(file, 1, 1)
-      end
+      if not selection then return end
+      local file = vim.split(selection, "\t")[3]
+      if file and file ~= "" then helpers.jump(file, 1, 1) end
     end,
   })
 end
@@ -145,18 +185,26 @@ G.diff = function()
   if #files == 0 then
     return helpers.notify("No changes found", vim.log.levels.INFO)
   end
+  local st = helpers.git_status()
+  local lines = {}
+  for _, f in ipairs(files) do
+    lines[#lines + 1] = helpers.badge_line(st, f)
+  end
   picker.pick({
-    source = files,
-    preview = "git diff --color=always -- {} 2>/dev/null; git diff --cached --color=always -- {} 2>/dev/null",
+    source = lines,
+    preview = "git diff --color=always -- {2} 2>/dev/null; git diff --cached --color=always -- {2} 2>/dev/null",
     title = " Git Diff ",
     prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
     },
     on_select = function(selection)
       if not selection then return end
-      helpers.jump(selection, 1, 1)
+      local path = selection:match("\t(.+)$")
+      if path then helpers.jump(path, 1, 1) end
     end,
   })
 end
@@ -174,18 +222,26 @@ G.diff_staged = function()
   if #files == 0 then
     return helpers.notify("No staged changes", vim.log.levels.INFO)
   end
+  local st = helpers.git_status()
+  local lines = {}
+  for _, f in ipairs(files) do
+    lines[#lines + 1] = helpers.badge_line(st, f)
+  end
   picker.pick({
-    source = files,
-    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
+    source = lines,
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {2}",
     title = " Git Diff (Staged) ",
     prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1",
     bind = {
       ["ctrl-d"] = "preview-half-page-down",
       ["ctrl-u"] = "preview-half-page-up",
     },
     on_select = function(selection)
       if not selection then return end
-      helpers.jump(selection, 1, 1)
+      local path = selection:match("\t(.+)$")
+      if path then helpers.jump(path, 1, 1) end
     end,
   })
 end

@@ -39,13 +39,22 @@ H.open = function()
     return helpers.notify("Harpoon is empty", vim.log.levels.WARN)
   end
 
+  local st = helpers.git_status()
+  local lines = {}
+  for _, f in ipairs(files) do
+    lines[#lines + 1] = helpers.badge_line(st, f)
+  end
+
   picker.pick({
-    source = files,
-    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
+    source = lines,
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {2}",
     title = " Harpoon ",
-    prompt = "  ",
+    prompt = "  ",
+    delimiter = "\t",
+    with_nth = "1",
     on_select = function(selection)
-      vim.cmd("edit " .. vim.fn.fnameescape(selection))
+      local path = selection and selection:match("\t(.+)$")
+      if path then vim.cmd("edit " .. vim.fn.fnameescape(path)) end
     end,
   })
 end
@@ -61,17 +70,28 @@ H.remove = function()
     return
   end
 
+  local st = helpers.git_status()
+  local lines = {}
+  for _, f in ipairs(files) do
+    lines[#lines + 1] = helpers.badge_line(st, f)
+  end
+
   picker.pick({
-    source = files,
+    source = lines,
     header = "Delete file",
     title = " Harpoon Remove ",
     prompt = "  ",
-    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {}",
+    preview = require("fzf.ui").get_preview_cmd() .. " --line-range :500 {2}",
+    delimiter = "\t",
+    with_nth = "1",
     on_select = function(selection)
+      local path = selection and selection:match("\t(.+)$")
+      if not path then return end
+
       local new_files = {}
 
       for _, f in ipairs(files) do
-        if f ~= selection then
+        if f ~= path then
           table.insert(new_files, f)
         end
       end

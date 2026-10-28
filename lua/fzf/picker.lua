@@ -9,11 +9,15 @@ local function resolve_preview_window(win_opts, opts)
     return opts.preview_window
   end
   local p = config.options.ui.preview
-  if p and p.position and p.size then
+  local user_preview = config.user.ui and config.user.ui.preview
+  if user_preview and p and p.position and p.size then
     return string.format("%s:%d%%:%s", p.position, p.size, p.border or "border-left")
   end
   if win_opts and win_opts.preview_window then
     return win_opts.preview_window
+  end
+  if p and p.position and p.size then
+    return string.format("%s:%d%%:%s", p.position, p.size, p.border or "border-left")
   end
   return "right:60%"
 end
@@ -66,7 +70,12 @@ local function build_pipeline_cmd(source, tmpfile, format_item)
   elseif type(source) == "function" then
     local res = source()
     if type(res) == "string" then
-      cmd = res
+      if vim.fn.filereadable(res) == 1 then
+        tmpfile[1] = res
+        cmd = "cat " .. vim.fn.shellescape(tmpfile[1])
+      else
+        cmd = res
+      end
     elseif type(res) == "table" then
       tmpfile[1] = write_source_to_temp(res, format_item)
       cmd = "cat " .. vim.fn.shellescape(tmpfile[1])
@@ -82,6 +91,8 @@ end
 
 local function build_fzf_flags(win_opts, opts)
   local flags = {}
+
+  table.insert(flags, "--no-clear")
 
   if opts.preview then
     local preview_cmd = type(opts.preview) == "function" and opts.preview() or opts.preview
@@ -103,6 +114,10 @@ local function build_fzf_flags(win_opts, opts)
 
   if opts.header then
     table.insert(flags, string.format("--header '%s'", helpers.escape_shell(opts.header)))
+  end
+
+  if opts.footer then
+    table.insert(flags, string.format("--footer '%s'", helpers.escape_shell(opts.footer)))
   end
 
   if opts.multiselect then
@@ -183,6 +198,16 @@ function M.pick(opts)
   opts = opts or {}
   local root = vim.fn.getcwd()
 
+  if M._frozen then
+    if M._frozen.win and vim.api.nvim_win_is_valid(M._frozen.win) then
+      vim.api.nvim_win_close(M._frozen.win, true)
+    end
+    if M._frozen.buf and vim.api.nvim_buf_is_valid(M._frozen.buf) then
+      vim.api.nvim_buf_delete(M._frozen.buf, { force = true })
+    end
+    M._frozen = nil
+  end
+
   local win_opts = resolve_win_opts(opts)
 
   local tmpfiles = {}
@@ -239,18 +264,29 @@ function M.pick(opts)
   vim.fn.termopen({ "sh", "-c", full_cmd }, {
     on_exit = function(_, code)
       vim.schedule(function()
-        if vim.api.nvim_win_is_valid(win) then
-          vim.api.nvim_win_close(win, true)
-        end
-        if backdrop and vim.api.nvim_win_is_valid(backdrop) then
-          vim.api.nvim_win_close(backdrop, true)
-        end
-
         local multiselect = opts.multiselect or false
         local selection, _ = read_selection(temp_out, multiselect)
 
         if selection == nil or selection == "" then
           selection = nil
+        end
+
+        local keep = selection ~= nil
+          and opts.keep_window ~= nil
+          and opts.keep_window(selection)
+
+        if keep then
+          if backdrop and vim.api.nvim_win_is_valid(backdrop) then
+            vim.api.nvim_win_close(backdrop, true)
+          end
+          backdrop = nil
+        else
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+          if backdrop and vim.api.nvim_win_is_valid(backdrop) then
+            vim.api.nvim_win_close(backdrop, true)
+          end
         end
 
         if selection then
@@ -265,6 +301,10 @@ function M.pick(opts)
           else
             opts.on_select(selection, { root = root })
           end
+        end
+
+        if keep then
+          M._frozen = { win = win, buf = buf }
         end
 
         if opts.on_cleanup then
@@ -287,6 +327,15 @@ function M.pick(opts)
       vim.api.nvim_win_close(backdrop, true)
     end
   end, { buffer = buf, nowait = true })
+
+  vim.api.nvim_create_autocmd("TermClose", {
+    buffer = buf,
+    once = true,
+    callback = function()
+      local ns = vim.api.nvim_get_namespaces()["nvim.terminal.exitmsg"]
+      if ns then pcall(vim.api.nvim_buf_clear_namespace, buf, ns, 0, -1) end
+    end,
+  })
 
   vim.cmd("startinsert!")
 end
