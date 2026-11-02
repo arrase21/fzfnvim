@@ -8,7 +8,7 @@ M.layout_presets = {
     return {
       width = w,
       height = h,
-      row = math.floor((vim.o.lines - h) / 3),
+      row = math.floor((vim.o.lines - h) * (c.row or 0.35)),
       col = math.floor((vim.o.columns - w) / 2),
       border = nil,
       preview_window = c.preview_window or "right:55%:border-left",
@@ -44,7 +44,7 @@ M.layout_presets = {
     return {
       width = w,
       height = h,
-      row = math.floor((vim.o.lines - h) / 2),
+      row = math.floor((vim.o.lines - h) * (v.row or 0.35)),
       col = math.floor((vim.o.columns - w) / 2),
       border = v.border,
       preview_window = v.preview_window or "top:40%:border-bottom",
@@ -171,9 +171,10 @@ local defaults = {
     layout = "center",
     width = 0.80,
     height = 0.80,
-    backdrop = true,
+    backdrop = false,
     backdrop_bg = "#000000",
     backdrop_blend = 70,
+    transparent = true,
     winblend = 0,
     border = "rounded",
     title = " FZF ",
@@ -224,7 +225,6 @@ local defaults = {
       "--marker='✓'",
       "--separator='─'",
       "--scrollbar='│'",
-      "--color='bg:-1,bg+:-1,gutter:-1,hl:4,hl+:4'",
     },
   },
 

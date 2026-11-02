@@ -264,7 +264,7 @@ function M.get_ansi(hl_name, fallback)
     if fallback then return M.ansi_color(fallback[1], fallback[2], fallback[3]) end
     return ""
   end
-  local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = true })
+  local hl = vim.api.nvim_get_hl(0, { name = hl_name, link = false })
   local ansi
   if hl and hl.fg then
     ansi = string.format(
@@ -279,6 +279,40 @@ function M.get_ansi(hl_name, fallback)
     ansi = ""
   end
   return ansi
+end
+
+local mini_icon_groups = {
+  "MiniIconsAzure",
+  "MiniIconsBlue",
+  "MiniIconsCyan",
+  "MiniIconsGreen",
+  "MiniIconsGrey",
+  "MiniIconsOrange",
+  "MiniIconsPurple",
+  "MiniIconsRed",
+  "MiniIconsYellow",
+}
+
+function M.write_icon_colors()
+  local lines = { "return {" }
+  for _, name in ipairs(mini_icon_groups) do
+    local ansi = M.get_ansi(name)
+    if ansi ~= "" then
+      lines[#lines + 1] = string.format("  [%q] = %q,", name, ansi)
+    end
+  end
+  lines[#lines + 1] = "}"
+
+  local content = table.concat(lines, "\n")
+  local hash = vim.fn.sha256(content):sub(1, 12)
+  local dir = vim.fn.stdpath("cache") .. "/fzfnvim"
+  pcall(vim.fn.mkdir, dir, "p")
+  local path = dir .. "/icon_colors_" .. hash .. ".lua"
+  if vim.fn.filereadable(path) == 0 then
+    local ok, result = pcall(vim.fn.writefile, lines, path)
+    if not ok or result ~= 0 then return nil end
+  end
+  return path
 end
 
 function M.kind_icon(kind)

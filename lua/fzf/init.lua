@@ -11,7 +11,6 @@ M.git = require("fzf.modules.git")
 M.lsp = require("fzf.modules.lsp")
 M.harpoon = require("fzf.modules.harpoon")
 M.session = require("fzf.modules.session")
-M.tree = require("fzf.modules.tree")
 
 -- search
 M.files = M.search.files
@@ -65,8 +64,6 @@ M.harpoon_add = M.harpoon.add
 M.harpoon_remove = M.harpoon.remove
 M.harpoon_open = M.harpoon.open
 
--- tree
-M.tree_open = M.tree.open
 
 -- sessions
 M.session_save = M.session.session_save

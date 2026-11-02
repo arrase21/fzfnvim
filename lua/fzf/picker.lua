@@ -4,6 +4,19 @@ local helpers = require("fzf.helpers")
 
 local M = {}
 
+local function preview_border(position, configured)
+  if configured == "none" or configured == "noborder" then
+    return configured
+  end
+  local borders = {
+    left = "border-right",
+    right = "border-left",
+    top = "border-bottom",
+    bottom = "border-top",
+  }
+  return borders[position] or configured or "border"
+end
+
 local function resolve_preview_window(win_opts, opts)
   if opts.preview_window then
     return opts.preview_window
@@ -11,13 +24,23 @@ local function resolve_preview_window(win_opts, opts)
   local p = config.options.ui.preview
   local user_preview = config.user.ui and config.user.ui.preview
   if user_preview and p and p.position and p.size then
-    return string.format("%s:%d%%:%s", p.position, p.size, p.border or "border-left")
+    return string.format(
+      "%s:%s%%:%s",
+      p.position,
+      p.size,
+      preview_border(p.position, p.border)
+    )
   end
   if win_opts and win_opts.preview_window then
     return win_opts.preview_window
   end
   if p and p.position and p.size then
-    return string.format("%s:%d%%:%s", p.position, p.size, p.border or "border-left")
+    return string.format(
+      "%s:%s%%:%s",
+      p.position,
+      p.size,
+      preview_border(p.position, p.border)
+    )
   end
   return "right:60%"
 end
@@ -34,6 +57,9 @@ end
 local function resolve_win_opts(opts)
   local win_opts = opts.win_opts
   if win_opts then
+    if opts.title and not win_opts.title then
+      win_opts.title = opts.title
+    end
     return win_opts
   end
 
@@ -256,6 +282,10 @@ function M.pick(opts)
     title = title,
     title_pos = title_pos,
   })
+  local restore_statusline = ui.freeze_statusline()
+  ui.restore_statusline_on_close(win, restore_statusline)
+  ui.apply_transparency(win)
+
   local winblend = config.options.ui.winblend or 0
   if winblend > 0 then
     vim.api.nvim_win_set_option(win, "winblend", winblend)

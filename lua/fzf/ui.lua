@@ -11,10 +11,82 @@ local function short_path(path)
   return last
 end
 
+local function resolve_hl(name)
+  local hl = vim.api.nvim_get_hl(0, { name = name, link = false })
+  if next(hl) == nil then
+    hl = vim.api.nvim_get_hl(0, { name = name })
+    if hl.link then
+      hl = vim.api.nvim_get_hl(0, { name = hl.link, link = false })
+    end
+  end
+  return hl
+end
+
+local function rgb(value)
+  if type(value) == "number" then
+    return string.format("#%06x", value)
+  end
+end
+
+local function cterm(value)
+  if type(value) == "number" then
+    return tostring(value)
+  end
+end
+
+local function fg_of(group)
+  local hl = resolve_hl(group)
+  return rgb(hl.fg) or cterm(hl.ctermfg)
+end
+
+local function bg_of(group)
+  local hl = resolve_hl(group)
+  return rgb(hl.bg) or cterm(hl.ctermbg)
+end
+
+function M.get_fzf_colors()
+  local normal_fg = fg_of("Normal") or "-1"
+  local normal_bg = bg_of("Normal") or "-1"
+  local special = fg_of("Special") or normal_fg
+  local border = fg_of("FloatBorder") or fg_of("NonText") or normal_fg
+  local sel_fg = fg_of("CursorLine") or normal_fg
+  local sel_bg = bg_of("CursorLine") or normal_bg
+  local title = fg_of("FloatTitle") or fg_of("Title") or normal_fg
+
+  local colors = {
+    "fg:" .. normal_fg,
+    "bg:" .. normal_bg,
+    "hl:" .. special,
+    "fg+:" .. sel_fg,
+    "bg+:" .. sel_bg,
+    "hl+:" .. special,
+    "prompt:" .. special,
+    "pointer:" .. special,
+    "marker:" .. special,
+    "spinner:" .. special,
+    "info:" .. (fg_of("NonText") or normal_fg),
+    "header:" .. title,
+    "border:" .. border,
+    "label:" .. title,
+    "gutter:" .. normal_bg,
+    "query:" .. normal_fg .. ":regular",
+    "disabled:" .. (fg_of("Comment") or normal_fg),
+    "separator:" .. border,
+    "scrollbar:" .. border,
+  }
+  return table.concat(colors, ",")
+end
+
 function M.get_fzf_base()
   local parts = {}
   for _, opt in ipairs(config.options.fzf.base) do
-    parts[#parts + 1] = opt
+    if not opt:match("^%-%-color") then
+      parts[#parts + 1] = opt
+    end
+  end
+  local colors = M.get_fzf_colors()
+  if colors ~= "" then
+    parts[#parts + 1] = "--color='" .. colors .. "'"
   end
   local cwd = short_path(vim.fn.fnamemodify(vim.fn.getcwd(), ":~"))
   parts[#parts + 1] = string.format("--prompt=' %s 󰍉  '", cwd)
@@ -22,7 +94,158 @@ function M.get_fzf_base()
 end
 
 function M.get_preview_cmd()
-  return config.options.preview.command .. " " .. config.options.preview.opts
+  local command = config.options.preview.command
+  local opts = config.options.preview.opts
+  local is_bat = vim.fn.fnamemodify(command, ":t"):match("^bat") ~= nil
+  if not is_bat or opts:match("%-%-theme") then
+    return command .. " " .. opts
+  end
+  local theme, config_dir, cache_dir = require("fzf.preview").ensure()
+  if not theme then
+    return command .. " " .. opts
+  end
+  return string.format(
+    "BAT_CONFIG_DIR=%s BAT_CACHE_PATH=%s %s %s --theme=%s",
+    vim.fn.shellescape(config_dir),
+    vim.fn.shellescape(cache_dir),
+    command,
+    opts,
+    theme
+  )
+end
+
+local frozen_statuslines = {}
+local refresh_autocmd
+
+local function escape_statusline(str)
+  return (str:gsub("%%", "%%%%"))
+end
+
+local function groups_hl(groups)
+  local opts = {}
+  for _, group in ipairs(groups) do
+    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = group, link = false })
+    if ok and type(hl) == "table" then
+      opts = vim.tbl_extend("force", opts, hl)
+    end
+  end
+  return opts
+end
+
+local function frozen_hl(groups, index)
+  local name = "FzfFrozenStatusline" .. index
+  vim.api.nvim_set_hl(0, name, groups_hl(groups))
+  return name
+end
+
+local function has_transparent_window()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local ok, wh = pcall(vim.api.nvim_win_get_option, win, "winhighlight")
+    if ok and wh:find("Normal:FzfTransparent", 1, true) then
+      return true
+    end
+  end
+  return false
+end
+
+local function refresh_live_highlights()
+  for win, state in pairs(frozen_statuslines) do
+    if not vim.api.nvim_win_is_valid(win) then
+      frozen_statuslines[win] = nil
+    else
+      for i = 1, state.count do
+        vim.api.nvim_set_hl(0, "FzfFrozenStatusline" .. i, groups_hl(state.groups[i]))
+      end
+    end
+  end
+
+  if has_transparent_window() then
+    local normal = resolve_hl("Normal")
+    local opts = { bg = "NONE", ctermbg = "NONE" }
+    if normal.fg then opts.fg = normal.fg end
+    if normal.ctermfg then opts.ctermfg = normal.ctermfg end
+    if normal.sp then opts.sp = normal.sp end
+    vim.api.nvim_set_hl(0, "FzfTransparent", opts)
+  end
+end
+
+local function ensure_refresh_autocmd()
+  if refresh_autocmd then return end
+  refresh_autocmd = vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = refresh_live_highlights,
+  })
+end
+
+function M.freeze_statusline()
+  local win = vim.api.nvim_get_current_win()
+  if not vim.api.nvim_win_is_valid(win) or frozen_statuslines[win] then return nil end
+
+  local original = vim.api.nvim_win_get_option(win, "statusline")
+  local stl = original ~= "" and original or vim.o.statusline
+  if stl == "" then return nil end
+
+  local ok, res = pcall(vim.api.nvim_eval_statusline, stl, { winid = win, highlights = true })
+  if not ok or type(res) ~= "table" then return nil end
+
+  local text = res.str or ""
+  local parts = {}
+  local pos = 0
+  local hl_count = 0
+  local group_sets = {}
+
+  for _, item in ipairs(res.highlights or {}) do
+    local start = math.max(0, math.min(item.start or 0, #text))
+    if start > pos then
+      parts[#parts + 1] = escape_statusline(text:sub(pos + 1, start))
+      pos = start
+    end
+    local groups = item.groups or (item.group and { item.group }) or {}
+    if #groups > 0 then
+      hl_count = hl_count + 1
+      group_sets[hl_count] = groups
+      parts[#parts + 1] = "%#" .. frozen_hl(groups, hl_count) .. "#"
+    end
+  end
+
+  parts[#parts + 1] = escape_statusline(text:sub(pos + 1))
+  if hl_count == 0 then return nil end
+
+  vim.api.nvim_win_set_option(win, "statusline", table.concat(parts))
+  frozen_statuslines[win] = { original = original, count = hl_count, groups = group_sets }
+  ensure_refresh_autocmd()
+
+  return function()
+    local state = frozen_statuslines[win]
+    if not state then return end
+    frozen_statuslines[win] = nil
+    for i = 1, state.count do
+      pcall(vim.api.nvim_set_hl, 0, "FzfFrozenStatusline" .. i, {})
+    end
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_set_option(win, "statusline", state.original)
+    end
+  end
+end
+
+function M.restore_statusline_on_close(win, restore)
+  if not restore then return end
+  vim.api.nvim_create_autocmd("WinClosed", {
+    pattern = tostring(win),
+    once = true,
+    callback = restore,
+  })
+end
+
+function M.apply_transparency(win)
+  if not config.options.ui.transparent then return end
+  local normal = resolve_hl("Normal")
+  local opts = { bg = "NONE", ctermbg = "NONE" }
+  if normal.fg then opts.fg = normal.fg end
+  if normal.ctermfg then opts.ctermfg = normal.ctermfg end
+  if normal.sp then opts.sp = normal.sp end
+  vim.api.nvim_set_hl(0, "FzfTransparent", opts)
+  vim.api.nvim_win_set_option(win, "winhighlight", "Normal:FzfTransparent")
+  ensure_refresh_autocmd()
 end
 
 function M.get_size()
@@ -38,10 +261,12 @@ end
 function M.create_backdrop()
   local buf = vim.api.nvim_create_buf(false, true)
 
+  local height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0)
+
   local win = vim.api.nvim_open_win(buf, false, {
     relative = "editor",
     width = vim.o.columns,
-    height = vim.o.lines,
+    height = height,
     row = 0,
     col = 0,
     focusable = false,
@@ -50,8 +275,9 @@ function M.create_backdrop()
     border = "none",
   })
 
+  local normal = resolve_hl("Normal")
   vim.api.nvim_set_hl(0, "MyFzfBackdrop", {
-    bg = config.options.ui.backdrop_bg,
+    bg = config.options.ui.backdrop_bg or normal.bg,
   })
 
   vim.api.nvim_win_set_option(win, "winhighlight", "Normal:MyFzfBackdrop")
@@ -199,6 +425,10 @@ function M.fzf_ui(cmd, on_select, win_opts)
     title = title,
     title_pos = title_pos,
   })
+  local restore_statusline = M.freeze_statusline()
+  M.restore_statusline_on_close(win, restore_statusline)
+  M.apply_transparency(win)
+
   local winblend = config.options.ui.winblend or 0
   if winblend > 0 then
     vim.api.nvim_win_set_option(win, "winblend", winblend)
